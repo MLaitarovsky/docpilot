@@ -25,6 +25,7 @@ class Settings(BaseSettings):
 
     # ── OpenAI ─────────────────────────────────────────
     openai_api_key: str = ""
+    llm_model: str = "gpt-4o-mini"
 
     # ── File Storage ───────────────────────────────────
     upload_dir: str = "/data/uploads"
