@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
 import {
   FileText,
   GitCompareArrows,
@@ -10,9 +9,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -45,15 +43,6 @@ interface ComparisonListResponse {
 }
 
 // ── Helpers ──
-
-const DOC_TYPE_STYLES: Record<string, string> = {
-  nda: "bg-purple-100 text-purple-700 border-purple-200 hover:bg-purple-100",
-  service_agreement:
-    "bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-100",
-  employment_contract:
-    "bg-teal-100 text-teal-700 border-teal-200 hover:bg-teal-100",
-  other: "bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-100",
-};
 
 function formatDocType(type: string | null): string {
   if (!type) return "Unknown";

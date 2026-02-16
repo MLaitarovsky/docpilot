@@ -1,9 +1,9 @@
 """Authentication helpers — password hashing and JWT token management."""
 
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
-from jose import JWTError, jwt
+from jose import jwt
 from passlib.context import CryptContext
 
 from app.config import settings
@@ -33,7 +33,7 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 def create_access_token(user_id: uuid.UUID, team_id: uuid.UUID | None) -> str:
     """Create a short-lived access token (default 30 min)."""
-    expire = datetime.now(timezone.utc) + timedelta(
+    expire = datetime.now(UTC) + timedelta(
         minutes=settings.access_token_expire_minutes,
     )
     payload = {
@@ -47,7 +47,7 @@ def create_access_token(user_id: uuid.UUID, team_id: uuid.UUID | None) -> str:
 
 def create_refresh_token(user_id: uuid.UUID) -> str:
     """Create a long-lived refresh token (default 7 days)."""
-    expire = datetime.now(timezone.utc) + timedelta(
+    expire = datetime.now(UTC) + timedelta(
         days=settings.refresh_token_expire_days,
     )
     payload = {

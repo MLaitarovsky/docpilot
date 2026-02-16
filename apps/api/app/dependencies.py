@@ -33,35 +33,45 @@ async def get_current_user(
     except JWTError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail={"data": None, "error": {"message": "Invalid or expired token", "code": "AUTH_TOKEN_INVALID"}},
-        )
+            detail={
+                "data": None,
+                "error": {"message": "Invalid or expired token", "code": "AUTH_TOKEN_INVALID"},
+            },
+        ) from None
 
     # Reject refresh tokens used on protected routes
     if payload.get("type") != "access":
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail={"data": None, "error": {"message": "Invalid token type", "code": "AUTH_TOKEN_INVALID"}},
+            detail={
+                "data": None,
+                "error": {"message": "Invalid token type", "code": "AUTH_TOKEN_INVALID"},
+            },
         )
 
     user_id = payload.get("sub")
     if user_id is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail={"data": None, "error": {"message": "Invalid token payload", "code": "AUTH_TOKEN_INVALID"}},
+            detail={
+                "data": None,
+                "error": {"message": "Invalid token payload", "code": "AUTH_TOKEN_INVALID"},
+            },
         )
 
     # Fetch the user with their team eagerly loaded
     result = await db.execute(
-        select(User)
-        .options(selectinload(User.team))
-        .where(User.id == uuid.UUID(user_id))
+        select(User).options(selectinload(User.team)).where(User.id == uuid.UUID(user_id))
     )
     user = result.scalar_one_or_none()
 
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail={"data": None, "error": {"message": "User not found", "code": "AUTH_USER_NOT_FOUND"}},
+            detail={
+                "data": None,
+                "error": {"message": "User not found", "code": "AUTH_USER_NOT_FOUND"},
+            },
         )
 
     return user

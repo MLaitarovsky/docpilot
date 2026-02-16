@@ -41,12 +41,14 @@ def chunk_text(
             start = idx + len(block)
 
     if not paragraphs:
-        return [{
-            "text": text.strip(),
-            "start_char": 0,
-            "end_char": len(text),
-            "pages": _find_pages(0, len(text), page_map),
-        }]
+        return [
+            {
+                "text": text.strip(),
+                "start_char": 0,
+                "end_char": len(text),
+                "pages": _find_pages(0, len(text), page_map),
+            }
+        ]
 
     chunks: list[dict] = []
     current_texts: list[str] = []
@@ -61,12 +63,14 @@ def chunk_text(
         if current_len + para_len > chunk_size and current_texts:
             chunk_body = "\n\n".join(current_texts)
             end_char = current_start + len(chunk_body)
-            chunks.append({
-                "text": chunk_body,
-                "start_char": current_start,
-                "end_char": end_char,
-                "pages": _find_pages(current_start, end_char, page_map),
-            })
+            chunks.append(
+                {
+                    "text": chunk_body,
+                    "start_char": current_start,
+                    "end_char": end_char,
+                    "pages": _find_pages(current_start, end_char, page_map),
+                }
+            )
 
             # Overlap: keep trailing paragraphs that fit within `overlap` chars
             overlap_texts: list[str] = []
@@ -92,11 +96,13 @@ def chunk_text(
     if current_texts:
         chunk_body = "\n\n".join(current_texts)
         end_char = current_start + len(chunk_body)
-        chunks.append({
-            "text": chunk_body,
-            "start_char": current_start,
-            "end_char": end_char,
-            "pages": _find_pages(current_start, end_char, page_map),
-        })
+        chunks.append(
+            {
+                "text": chunk_body,
+                "start_char": current_start,
+                "end_char": end_char,
+                "pages": _find_pages(current_start, end_char, page_map),
+            }
+        )
 
     return chunks

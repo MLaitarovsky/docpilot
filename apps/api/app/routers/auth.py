@@ -51,7 +51,10 @@ async def register(body: RegisterRequest, db: AsyncSession = Depends(get_db)):
     if existing.scalar_one_or_none() is not None:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail={"data": None, "error": {"message": "Email already registered", "code": "AUTH_EMAIL_EXISTS"}},
+            detail={
+                "data": None,
+                "error": {"message": "Email already registered", "code": "AUTH_EMAIL_EXISTS"},
+            },
         )
 
     # Generate a unique slug from the team name
@@ -104,16 +107,17 @@ async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)):
     """Authenticate with email + password, receive JWT tokens."""
 
     result = await db.execute(
-        select(User)
-        .options(selectinload(User.team))
-        .where(User.email == body.email)
+        select(User).options(selectinload(User.team)).where(User.email == body.email)
     )
     user = result.scalar_one_or_none()
 
     if user is None or not verify_password(body.password, user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail={"data": None, "error": {"message": "Invalid email or password", "code": "AUTH_INVALID"}},
+            detail={
+                "data": None,
+                "error": {"message": "Invalid email or password", "code": "AUTH_INVALID"},
+            },
         )
 
     access_token = create_access_token(user.id, user.team_id)
@@ -143,13 +147,25 @@ async def refresh(body: RefreshRequest, db: AsyncSession = Depends(get_db)):
     except Exception:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail={"data": None, "error": {"message": "Invalid or expired refresh token", "code": "AUTH_REFRESH_INVALID"}},
-        )
+            detail={
+                "data": None,
+                "error": {
+                    "message": "Invalid or expired refresh token",
+                    "code": "AUTH_REFRESH_INVALID",
+                },
+            },
+        ) from None
 
     if payload.get("type") != "refresh":
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail={"data": None, "error": {"message": "Token is not a refresh token", "code": "AUTH_REFRESH_INVALID"}},
+            detail={
+                "data": None,
+                "error": {
+                    "message": "Token is not a refresh token",
+                    "code": "AUTH_REFRESH_INVALID",
+                },
+            },
         )
 
     user_id = payload.get("sub")
@@ -159,7 +175,10 @@ async def refresh(body: RefreshRequest, db: AsyncSession = Depends(get_db)):
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail={"data": None, "error": {"message": "User not found", "code": "AUTH_USER_NOT_FOUND"}},
+            detail={
+                "data": None,
+                "error": {"message": "User not found", "code": "AUTH_USER_NOT_FOUND"},
+            },
         )
 
     new_access_token = create_access_token(user.id, user.team_id)

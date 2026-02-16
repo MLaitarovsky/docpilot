@@ -18,7 +18,7 @@ import { clearTokens, isAuthenticated } from "@/lib/auth";
 import type { User } from "@/types/auth";
 
 const NAV_ITEMS = [
-  { label: "Dashboard", href: "/", icon: LayoutDashboard },
+  { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { label: "Documents", href: "/documents", icon: FileText },
   { label: "Compare", href: "/compare", icon: GitCompareArrows },
   { label: "Team", href: "/team", icon: Users },
@@ -35,7 +35,7 @@ export default function DashboardLayout({
 
   useEffect(() => {
     if (!isAuthenticated()) {
-      router.replace("/login");
+      router.replace("/");
       return;
     }
 
@@ -44,7 +44,7 @@ export default function DashboardLayout({
       .then(setUser)
       .catch(() => {
         clearTokens();
-        router.replace("/login");
+        router.replace("/");
       });
   }, [router]);
 
@@ -53,10 +53,9 @@ export default function DashboardLayout({
     router.replace("/login");
   }
 
-  /** Check if a nav item is active (exact match for "/", prefix for others). */
+  /** Check if a nav item is active (prefix match). */
   function isActive(href: string) {
-    if (href === "/") return pathname === "/";
-    return pathname.startsWith(href);
+    return pathname === href || pathname.startsWith(href + "/");
   }
 
   return (

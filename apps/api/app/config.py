@@ -30,6 +30,14 @@ class Settings(BaseSettings):
     # ── File Storage ───────────────────────────────────
     upload_dir: str = "/data/uploads"
 
+    # ── CORS ───────────────────────────────────────────
+    cors_origins: str = "http://localhost:3000,http://localhost:3001"
+
+    @property
+    def cors_origin_list(self) -> list[str]:
+        """Parse the comma-separated CORS_ORIGINS string into a list."""
+        return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
+
 
 # Singleton — import this instance everywhere
 settings = Settings()

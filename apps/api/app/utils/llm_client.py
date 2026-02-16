@@ -4,7 +4,7 @@ import json
 import logging
 import time
 
-from openai import OpenAI, APIError, RateLimitError
+from openai import APIError, OpenAI, RateLimitError
 
 from app.config import settings
 
@@ -76,15 +76,20 @@ def call_llm(
                 last_error = ValueError(f"Invalid JSON from LLM: {e}")
                 logger.warning(
                     "Attempt %d/%d — malformed JSON, retrying: %s",
-                    attempt, max_retries, str(e),
+                    attempt,
+                    max_retries,
+                    str(e),
                 )
 
         except RateLimitError as e:
             last_error = e
-            wait = 2 ** attempt
+            wait = 2**attempt
             logger.warning(
                 "Attempt %d/%d — rate limited, waiting %ds: %s",
-                attempt, max_retries, wait, str(e),
+                attempt,
+                max_retries,
+                wait,
+                str(e),
             )
             time.sleep(wait)
 
@@ -93,10 +98,13 @@ def call_llm(
             if e.status_code and e.status_code < 500:
                 raise
             last_error = e
-            wait = 2 ** attempt
+            wait = 2**attempt
             logger.warning(
                 "Attempt %d/%d — server error %s, waiting %ds",
-                attempt, max_retries, e.status_code, wait,
+                attempt,
+                max_retries,
+                e.status_code,
+                wait,
             )
             time.sleep(wait)
 

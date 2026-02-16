@@ -65,12 +65,15 @@ def process_document(self, document_id: str) -> dict:
             logger.exception("Could not mark document %s as failed", document_id)
 
         # Publish error event so the SSE stream can notify the client
-        publish_job_status(job_id, {
-            "step": 0,
-            "total_steps": 5,
-            "message": f"Processing failed: {exc}",
-            "progress": -1,
-        })
+        publish_job_status(
+            job_id,
+            {
+                "step": 0,
+                "total_steps": 5,
+                "message": f"Processing failed: {exc}",
+                "progress": -1,
+            },
+        )
 
         raise
 

@@ -88,13 +88,15 @@ def compare_clauses(
         in_b = ct in map_b
 
         if in_a and in_b:
-            shared.append({
-                "clause_type": ct,
-                "risk_a": map_a[ct].get("risk_level"),
-                "risk_b": map_b[ct].get("risk_level"),
-                "summary_a": map_a[ct].get("plain_summary"),
-                "summary_b": map_b[ct].get("plain_summary"),
-            })
+            shared.append(
+                {
+                    "clause_type": ct,
+                    "risk_a": map_a[ct].get("risk_level"),
+                    "risk_b": map_b[ct].get("risk_level"),
+                    "summary_a": map_a[ct].get("plain_summary"),
+                    "summary_b": map_b[ct].get("plain_summary"),
+                }
+            )
         elif in_a:
             only_in_a.append(ct)
         else:

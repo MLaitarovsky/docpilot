@@ -1,7 +1,6 @@
 """User model — authentication and team membership."""
 
 import uuid
-from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
 from sqlalchemy import ForeignKey, String

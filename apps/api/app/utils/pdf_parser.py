@@ -23,12 +23,14 @@ def extract_text_from_pdf(file_path: str) -> tuple[str, list[dict]]:
         start = cursor
         end = cursor + len(text)
 
-        page_map.append({
-            "page": page_num + 1,  # 1-indexed
-            "start_char": start,
-            "end_char": end,
-            "text": text,
-        })
+        page_map.append(
+            {
+                "page": page_num + 1,  # 1-indexed
+                "start_char": start,
+                "end_char": end,
+                "text": text,
+            }
+        )
 
         full_text_parts.append(text)
         cursor = end

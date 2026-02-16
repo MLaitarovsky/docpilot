@@ -126,15 +126,11 @@ async def list_documents(
         base = base.where(Document.doc_type == doc_type)
 
     # Count total matching
-    count_result = await db.execute(
-        select(func.count()).select_from(base.subquery())
-    )
+    count_result = await db.execute(select(func.count()).select_from(base.subquery()))
     total = count_result.scalar_one()
 
     # Fetch page
-    result = await db.execute(
-        base.order_by(Document.created_at.desc()).limit(limit).offset(offset)
-    )
+    result = await db.execute(base.order_by(Document.created_at.desc()).limit(limit).offset(offset))
     documents = result.scalars().all()
 
     return {

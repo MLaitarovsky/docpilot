@@ -31,7 +31,4 @@ Rules:
 
 def build_user_prompt(text: str, doc_type: str) -> str:
     """Build the user message with the full document text and its type."""
-    return (
-        f"Document type: {doc_type}\n\n"
-        f"Analyze the clauses in this document:\n\n{text}"
-    )
+    return f"Document type: {doc_type}\n\nAnalyze the clauses in this document:\n\n{text}"

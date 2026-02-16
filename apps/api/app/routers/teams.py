@@ -74,17 +74,13 @@ async def list_members(
     """List all members in the current user's team."""
     # Count
     count_result = await db.execute(
-        select(func.count())
-        .select_from(User)
-        .where(User.team_id == user.team_id)
+        select(func.count()).select_from(User).where(User.team_id == user.team_id)
     )
     total = count_result.scalar_one()
 
     # Fetch all members
     result = await db.execute(
-        select(User)
-        .where(User.team_id == user.team_id)
-        .order_by(User.created_at.asc())
+        select(User).where(User.team_id == user.team_id).order_by(User.created_at.asc())
     )
     members = result.scalars().all()
 

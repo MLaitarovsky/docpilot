@@ -8,14 +8,13 @@ from pathlib import Path
 # Ensure the project root (/app) is on sys.path so `app.*` imports work
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from alembic import context
 from sqlalchemy.ext.asyncio import create_async_engine
-
-from app.config import settings
-from app.database import Base
 
 # Import all models so metadata is populated
 import app.models  # noqa: F401
+from alembic import context
+from app.config import settings
+from app.database import Base
 
 # Alembic Config object (provides access to alembic.ini values)
 config = context.config

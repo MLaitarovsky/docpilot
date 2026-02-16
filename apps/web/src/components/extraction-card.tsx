@@ -7,7 +7,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import { ConfidenceIndicator } from "@/components/confidence-indicator";
 import type { Extraction, ExtractedField } from "@/types/extraction";
 

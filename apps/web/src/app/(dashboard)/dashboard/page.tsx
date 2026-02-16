@@ -4,7 +4,6 @@ import { useState } from "react";
 import Link from "next/link";
 import {
   CheckCircle2,
-  Clock,
   FileText,
   Loader2,
   Plus,
@@ -25,7 +24,6 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { UploadDropzone } from "@/components/upload-dropzone";
 import { useDocuments } from "@/hooks/use-documents";
-import type { Document } from "@/types/document";
 
 // ── Helpers ──
 

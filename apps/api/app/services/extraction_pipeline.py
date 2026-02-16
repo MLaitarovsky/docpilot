@@ -18,6 +18,7 @@ from decimal import Decimal
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.config import settings
 from app.models.clause import Clause
 from app.models.document import Document
 from app.models.extraction import Extraction
@@ -29,7 +30,6 @@ from app.prompts import (
     extract_nda,
     extract_service_agreement,
 )
-from app.config import settings
 from app.services.redis_client import publish_job_status
 from app.utils.chunker import chunk_text
 from app.utils.llm_client import call_llm
@@ -52,7 +52,14 @@ EXTRACTION_PROMPTS: dict[str, tuple] = {
     ),
 }
 
-VALID_DOC_TYPES = {"nda", "service_agreement", "employment_contract", "lease", "saas_terms", "other"}
+VALID_DOC_TYPES = {
+    "nda",
+    "service_agreement",
+    "employment_contract",
+    "lease",
+    "saas_terms",
+    "other",
+}
 
 
 class ExtractionPipeline:
@@ -72,12 +79,15 @@ class ExtractionPipeline:
 
     def _publish(self, step: int, message: str, progress: int) -> None:
         """Publish a progress update to Redis."""
-        publish_job_status(self.job_id, {
-            "step": step,
-            "total_steps": TOTAL_STEPS,
-            "message": message,
-            "progress": progress,
-        })
+        publish_job_status(
+            self.job_id,
+            {
+                "step": step,
+                "total_steps": TOTAL_STEPS,
+                "message": message,
+                "progress": progress,
+            },
+        )
 
     def run(self) -> None:
         """Execute all pipeline steps in sequence."""

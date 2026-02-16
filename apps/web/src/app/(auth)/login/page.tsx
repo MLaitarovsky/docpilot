@@ -41,7 +41,7 @@ export default function LoginPage() {
 
       saveTokens(data.tokens.access_token, data.tokens.refresh_token);
       toast.success("Welcome back!");
-      router.push("/");
+      router.push("/dashboard");
     } catch (err) {
       const message =
         err instanceof ApiError ? err.message : "Something went wrong";

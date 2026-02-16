@@ -197,9 +197,7 @@ async def list_comparisons(
 ):
     """List all comparisons for the current team, newest first."""
     count_result = await db.execute(
-        select(func.count())
-        .select_from(Comparison)
-        .where(Comparison.team_id == user.team_id)
+        select(func.count()).select_from(Comparison).where(Comparison.team_id == user.team_id)
     )
     total = count_result.scalar_one()
 

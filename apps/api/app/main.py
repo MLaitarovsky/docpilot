@@ -5,11 +5,11 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.database import engine
-from app.routers import auth, compare, documents, jobs, teams
-
 # Import all models so they're registered with SQLAlchemy metadata
 import app.models  # noqa: F401
+from app.config import settings
+from app.database import engine
+from app.routers import auth, compare, documents, jobs, teams
 
 
 @asynccontextmanager
@@ -27,10 +27,10 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Allow the Next.js frontend during local dev
+# CORS — reads allowed origins from the CORS_ORIGINS env var
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:3001"],
+    allow_origins=settings.cors_origin_list,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
