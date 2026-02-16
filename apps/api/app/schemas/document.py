@@ -73,6 +73,7 @@ class DocumentDetailResponse(BaseModel):
     filename: str
     file_size_bytes: int | None = None
     page_count: int | None = None
+    raw_text: str | None = None
     doc_type: str | None = None
     status: str
     created_at: datetime

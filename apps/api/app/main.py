@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.database import engine
-from app.routers import auth, documents, jobs
+from app.routers import auth, compare, documents, jobs, teams
 
 # Import all models so they're registered with SQLAlchemy metadata
 import app.models  # noqa: F401
@@ -39,8 +39,10 @@ app.add_middleware(
 
 # ── Routers ────────────────────────────────────────────
 app.include_router(auth.router)
+app.include_router(compare.router)
 app.include_router(documents.router)
 app.include_router(jobs.router)
+app.include_router(teams.router)
 
 
 @app.get("/health")

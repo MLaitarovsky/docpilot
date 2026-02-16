@@ -18,7 +18,6 @@ celery.conf.update(
     accept_content=["json"],
     timezone="UTC",
     enable_utc=True,
+    # Explicitly list task modules so Celery registers them on startup
+    include=["app.tasks.process_document"],
 )
-
-# Auto-discover tasks inside app/tasks/
-celery.autodiscover_tasks(["app.tasks"])

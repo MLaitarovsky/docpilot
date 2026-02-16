@@ -85,6 +85,10 @@ async def upload_document(
     db.add(document)
     await db.flush()
 
+    # Commit NOW so the Celery worker can see the row immediately.
+    # (The get_db dependency will also commit on exit, which is a no-op.)
+    await db.commit()
+
     # Kick off the Celery extraction pipeline
     task = process_document.delay(str(document.id))
 
@@ -104,23 +108,32 @@ async def upload_document(
 async def list_documents(
     limit: int = Query(default=20, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
+    status_filter: str | None = Query(default=None, alias="status"),
+    doc_type: str | None = Query(default=None),
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """List all documents for the current user's team, newest first."""
-    # Count total
+    """List all documents for the current user's team, newest first.
+
+    Optional filters: status (uploaded|processing|completed|failed),
+    doc_type (nda|service_agreement|employment_contract|etc.).
+    """
+    base = select(Document).where(Document.team_id == user.team_id)
+
+    if status_filter:
+        base = base.where(Document.status == status_filter)
+    if doc_type:
+        base = base.where(Document.doc_type == doc_type)
+
+    # Count total matching
     count_result = await db.execute(
-        select(func.count()).select_from(Document).where(Document.team_id == user.team_id)
+        select(func.count()).select_from(base.subquery())
     )
     total = count_result.scalar_one()
 
     # Fetch page
     result = await db.execute(
-        select(Document)
-        .where(Document.team_id == user.team_id)
-        .order_by(Document.created_at.desc())
-        .limit(limit)
-        .offset(offset)
+        base.order_by(Document.created_at.desc()).limit(limit).offset(offset)
     )
     documents = result.scalars().all()
 
@@ -166,6 +179,64 @@ async def get_document(
 
     return {
         "data": DocumentDetailResponse.model_validate(document).model_dump(),
+        "error": None,
+    }
+
+
+# ── POST /api/documents/{id}/reprocess ─────────────────
+
+
+@router.post("/{document_id}/reprocess")
+async def reprocess_document(
+    document_id: uuid.UUID,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Re-trigger the extraction pipeline for an existing document.
+
+    Resets the status to 'uploaded' and kicks off a new Celery task.
+    Useful when a previous extraction failed or when the pipeline has
+    been improved and you want fresh results.
+    """
+    result = await db.execute(
+        select(Document).where(
+            Document.id == document_id,
+            Document.team_id == user.team_id,
+        )
+    )
+    document = result.scalar_one_or_none()
+
+    if document is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "data": None,
+                "error": {"message": "Document not found", "code": "DOC_NOT_FOUND"},
+            },
+        )
+
+    if document.status == "processing":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "data": None,
+                "error": {
+                    "message": "Document is already being processed",
+                    "code": "DOC_ALREADY_PROCESSING",
+                },
+            },
+        )
+
+    document.status = "uploaded"
+    await db.commit()
+
+    task = process_document.delay(str(document.id))
+
+    return {
+        "data": DocumentUploadResponse(
+            document=DocumentResponse.model_validate(document),
+            task_id=task.id,
+        ).model_dump(),
         "error": None,
     }
 

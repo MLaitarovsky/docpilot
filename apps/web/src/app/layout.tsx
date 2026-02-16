@@ -15,7 +15,10 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "DocPilot",
+  title: {
+    default: "DocPilot",
+    template: "%s | DocPilot",
+  },
   description: "AI-powered contract review and extraction platform",
 };
 

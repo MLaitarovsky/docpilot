@@ -11,7 +11,13 @@
       "Bash(npx next build)",
       "Bash(npx next dev --port 3000)",
       "Bash(python3:*)",
-      "Bash(TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2ODZlODVhOC0yZDExLTQzZWEtYjBhOC01MzdmYTIzYTYyNGUiLCJ0ZWFtX2lkIjoiMTI2N2Q5MDAtOWE3Yy00YjVmLTliZDUtMWZjMjZlMzkyNjU1IiwidHlwZSI6ImFjY2VzcyIsImV4cCI6MTc3MTAwMTEwMn0.l_mDKqNsEWxoEHnc5p0Pj4J7t0U3VIKfpT8-3Xka4ZE\")"
+      "Bash(TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2ODZlODVhOC0yZDExLTQzZWEtYjBhOC01MzdmYTIzYTYyNGUiLCJ0ZWFtX2lkIjoiMTI2N2Q5MDAtOWE3Yy00YjVmLTliZDUtMWZjMjZlMzkyNjU1IiwidHlwZSI6ImFjY2VzcyIsImV4cCI6MTc3MTAwMTEwMn0.l_mDKqNsEWxoEHnc5p0Pj4J7t0U3VIKfpT8-3Xka4ZE\")",
+      "Bash(npx tsc:*)",
+      "Bash(npm view:*)",
+      "Bash(npm install:*)",
+      "Bash(ping:*)",
+      "Bash(python:*)",
+      "Bash(ls:*)"
     ]
   }
 }
