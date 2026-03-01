@@ -27,10 +27,10 @@ class Settings(BaseSettings):
         """
         if v.startswith("postgres://"):
             # postgres:// → postgresql+asyncpg://
-            return "postgresql+asyncpg" + v[len("postgres"):]
+            return "postgresql+asyncpg" + v[len("postgres") :]
         if v.startswith("postgresql://"):
             # postgresql:// → postgresql+asyncpg://
-            return "postgresql+asyncpg" + v[len("postgresql"):]
+            return "postgresql+asyncpg" + v[len("postgresql") :]
         # Already has a driver (e.g. postgresql+asyncpg://) — leave alone
         return v
 
