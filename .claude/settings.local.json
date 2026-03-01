@@ -17,7 +17,12 @@
       "Bash(npm install:*)",
       "Bash(ping:*)",
       "Bash(python:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(pip install:*)",
+      "Bash(ruff check:*)",
+      "Bash(npx next lint)",
+      "Bash(npm run build:*)",
+      "Bash(SECRET_KEY=test-secret OPENAI_API_KEY=sk-test python:*)"
     ]
   }
 }
