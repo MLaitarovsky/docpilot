@@ -72,6 +72,7 @@ export default function RegisterPage() {
               id="full_name"
               name="full_name"
               placeholder="Jane Doe"
+              autoComplete="name"
               required
             />
           </div>
@@ -83,6 +84,7 @@ export default function RegisterPage() {
               name="email"
               type="email"
               placeholder="you@company.com"
+              autoComplete="email"
               required
             />
           </div>
@@ -93,6 +95,7 @@ export default function RegisterPage() {
               id="team_name"
               name="team_name"
               placeholder="Acme Corp"
+              autoComplete="organization"
               required
             />
           </div>
@@ -104,6 +107,7 @@ export default function RegisterPage() {
               name="password"
               type="password"
               placeholder="Min 8 characters"
+              autoComplete="new-password"
               required
               minLength={8}
             />

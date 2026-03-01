@@ -69,6 +69,7 @@ export default function LoginPage() {
               name="email"
               type="email"
               placeholder="you@company.com"
+              autoComplete="email"
               required
             />
           </div>
@@ -80,6 +81,7 @@ export default function LoginPage() {
               name="password"
               type="password"
               placeholder="********"
+              autoComplete="current-password"
               required
               minLength={8}
             />
