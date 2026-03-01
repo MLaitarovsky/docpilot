@@ -132,15 +132,6 @@ With the backend running, interactive API docs are available at:
 - **Swagger UI:** [http://localhost:8001/docs](http://localhost:8001/docs)
 - **ReDoc:** [http://localhost:8001/redoc](http://localhost:8001/redoc)
 
-## Resume Bullets
-
-> For anyone using this as a portfolio piece — here's how to talk about it:
-
-- Built an AI-powered contract review platform that extracts key fields and flags risky clauses using GPT-4o with structured JSON output and Pydantic validation
-- Designed an async document processing pipeline using Celery and Redis with real-time progress streaming via Server-Sent Events
-- Implemented side-by-side contract comparison with field-level diffing across different contract types
-- Built a multi-tenant architecture with JWT authentication, role-based access control, and team workspaces
-
 ## License
 
 [MIT](LICENSE)
