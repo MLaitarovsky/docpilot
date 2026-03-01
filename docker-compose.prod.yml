@@ -37,7 +37,7 @@ services:
     expose:
       - "8000"
     volumes:
-      - uploads:/data/uploads
+      - uploads:/app/uploads
     depends_on:
       postgres:
         condition: service_healthy
@@ -52,7 +52,7 @@ services:
     restart: unless-stopped
     env_file: .env
     volumes:
-      - uploads:/data/uploads
+      - uploads:/app/uploads
     depends_on:
       postgres:
         condition: service_healthy

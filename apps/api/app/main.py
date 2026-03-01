@@ -1,5 +1,6 @@
 """DocPilot API — FastAPI application entry point."""
 
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -15,6 +16,8 @@ from app.routers import auth, compare, documents, jobs, teams
 @asynccontextmanager
 async def lifespan(application: FastAPI):
     """Startup / shutdown lifecycle hook."""
+    # Ensure the upload directory exists (Railway may start with a clean fs)
+    os.makedirs(settings.upload_dir, exist_ok=True)
     yield
     # Dispose the connection pool on shutdown
     await engine.dispose()
@@ -45,6 +48,6 @@ app.include_router(jobs.router)
 app.include_router(teams.router)
 
 
-@app.get("/health")
+@app.get("/api/health")
 async def health_check():
     return {"data": {"status": "ok"}, "error": None}

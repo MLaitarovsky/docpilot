@@ -43,7 +43,7 @@ services:
       - "8001:8000"
     volumes:
       - ./apps/api:/app
-      - uploads:/data/uploads
+      - uploads:/app/uploads
     depends_on:
       postgres:
         condition: service_healthy
@@ -60,7 +60,7 @@ services:
     env_file: .env
     volumes:
       - ./apps/api:/app
-      - uploads:/data/uploads
+      - uploads:/app/uploads
     depends_on:
       postgres:
         condition: service_healthy

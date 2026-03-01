@@ -12,7 +12,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
+# Make the start script executable
+RUN chmod +x start.sh
+
 EXPOSE 8000
 
-# Default command — overridden in docker-compose for the worker service
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Default: run migrations then start the API.
+# Railway overrides this with: bash start.sh (which uses $PORT automatically).
+# The worker service overrides this with the Celery command.
+CMD ["bash", "start.sh"]
