@@ -53,16 +53,29 @@ async def register(body: RegisterRequest, db: AsyncSession = Depends(get_db)):
             status_code=status.HTTP_409_CONFLICT,
             detail={
                 "data": None,
-                "error": {"message": "Email already registered", "code": "AUTH_EMAIL_EXISTS"},
+                "error": {
+                    "message": "An account with this email already exists.",
+                    "code": "AUTH_EMAIL_EXISTS",
+                },
             },
         )
 
-    # Generate a unique slug from the team name
-    base_slug = _slugify(body.team_name)
-    slug = base_slug
-    slug_conflict = await db.execute(select(Team).where(Team.slug == slug))
-    if slug_conflict.scalar_one_or_none() is not None:
-        slug = f"{base_slug}-{uuid.uuid4().hex[:6]}"
+    # Check if the company name is already taken
+    existing_team = await db.execute(select(Team).where(Team.name == body.team_name))
+    if existing_team.scalar_one_or_none() is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "data": None,
+                "error": {
+                    "message": "This company name is already in use. Please choose a different name.",
+                    "code": "AUTH_TEAM_NAME_EXISTS",
+                },
+            },
+        )
+
+    # Generate a URL-safe slug from the team name
+    slug = _slugify(body.team_name)
 
     # Create the team
     team = Team(name=body.team_name, slug=slug)

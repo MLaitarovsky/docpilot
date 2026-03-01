@@ -69,10 +69,16 @@ async function request<T>(
     headers["Authorization"] = `Bearer ${token}`;
   }
 
-  const res = await fetch(`${BASE_URL}${path}`, {
-    ...options,
-    headers,
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${BASE_URL}${path}`, { ...options, headers });
+  } catch {
+    // Network-level failure: server is down, wrong URL, or CORS preflight blocked.
+    throw new ApiError(
+      "Unable to reach the server. Please check your connection and try again.",
+      "NETWORK_ERROR",
+    );
+  }
 
   // Auto-refresh on 401 (once)
   if (res.status === 401 && !_isRetry) {
