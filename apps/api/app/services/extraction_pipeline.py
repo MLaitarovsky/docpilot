@@ -118,11 +118,32 @@ class ExtractionPipeline:
 
     def _step1_extract_text(self) -> None:
         self._publish(1, "Extracting text from PDF...", 10)
-        logger.info("Step 1/5 — Extracting text from %s", self.document.file_path)
 
+        if self.document.raw_text:
+            # Text was pre-extracted by the API on upload.  In production the
+            # API and Worker run in separate containers that don't share a
+            # filesystem, so we read from the database instead of the file.
+            logger.info(
+                "Step 1/5 — Using pre-extracted text (%d chars)",
+                len(self.document.raw_text),
+            )
+            self.full_text = self.document.raw_text
+            # Build a synthetic page_map so the rest of the pipeline works.
+            # Page numbers on clauses will all be 1, which is acceptable.
+            self.page_map = [
+                {
+                    "page": 1,
+                    "start_char": 0,
+                    "end_char": len(self.full_text),
+                    "text": self.full_text,
+                }
+            ]
+            return
+
+        # Fallback: extract from file directly (local dev with shared filesystem).
+        logger.info("Step 1/5 — Extracting text from %s", self.document.file_path)
         self.full_text, self.page_map = extract_text_from_pdf(self.document.file_path)
 
-        # Update the document with extracted text and page count
         self.document.raw_text = self.full_text
         self.document.page_count = len(self.page_map)
         self.db.commit()

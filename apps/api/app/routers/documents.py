@@ -1,5 +1,6 @@
 """Document endpoints — upload, list, detail, delete."""
 
+import logging
 import os
 import uuid
 
@@ -20,8 +21,10 @@ from app.schemas.document import (
     DocumentUploadResponse,
 )
 from app.tasks.process_document import process_document
+from app.utils.pdf_parser import extract_text_from_pdf
 
 router = APIRouter(prefix="/api/documents", tags=["documents"])
+logger = logging.getLogger(__name__)
 
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
 
@@ -73,6 +76,20 @@ async def upload_document(
     with open(file_path, "wb") as f:
         f.write(contents)
 
+    # Pre-extract text from the PDF here in the API process.
+    # The API and Celery worker run in separate containers on Railway and do
+    # NOT share a filesystem — the worker cannot open a file saved by the API.
+    # By extracting text now and storing it in raw_text, the worker can read
+    # it from the database and skip the file-read step entirely.
+    raw_text: str | None = None
+    page_count: int | None = None
+    try:
+        extracted_text, page_map = extract_text_from_pdf(file_path)
+        raw_text = extracted_text
+        page_count = len(page_map)
+    except Exception as exc:
+        logger.warning("Pre-extraction failed, worker will attempt: %s", exc)
+
     # Create the document record
     document = Document(
         team_id=user.team_id,
@@ -80,6 +97,8 @@ async def upload_document(
         filename=safe_name,
         file_path=file_path,
         file_size_bytes=len(contents),
+        raw_text=raw_text,
+        page_count=page_count,
         status="uploaded",
     )
     db.add(document)
