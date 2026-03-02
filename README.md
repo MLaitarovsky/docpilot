@@ -2,11 +2,6 @@
 
 **AI-powered contract review and extraction platform.**
 
-![Screenshot](docs/comparison_1.png)
-![Screenshot](docs/risks_1.png)
-![Screenshot](docs/comparison_3.png)
-![Screenshot](docs/document_dashboard.png)
-
 [![Next.js](https://img.shields.io/badge/Next.js-15-black?logo=next.js)](https://nextjs.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?logo=fastapi)](https://fastapi.tiangolo.com/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
@@ -21,6 +16,8 @@
 ## What It Does
 
 Upload PDF contracts (NDAs, service agreements, employment contracts) and DocPilot automatically classifies the document type, extracts key fields like parties, dates, and payment terms using GPT-4o, and flags risky clauses with plain-English explanations. Compare two contracts side-by-side to spot differences at a glance.
+
+![DocPilot — Contract Comparison](docs/comparison_1.png)
 
 ## Key Features
 
@@ -56,6 +53,26 @@ graph LR
 | **Database** | PostgreSQL 16 |
 | **DevOps** | Docker Compose, GitHub Actions CI |
 
+## Screenshots
+
+<details>
+<summary>Risk Analysis</summary>
+
+![Risk Analysis](docs/risks_1.png)
+</details>
+
+<details>
+<summary>Clause Comparison</summary>
+
+![Clause Comparison](docs/comparison_3.png)
+</details>
+
+<details>
+<summary>Document Dashboard</summary>
+
+![Document Dashboard](docs/document_dashboard.png)
+</details>
+
 ## Getting Started
 
 ### Prerequisites
@@ -68,7 +85,7 @@ graph LR
 
 ```bash
 # Clone the repo
-git clone https://github.com/your-username/docpilot.git
+git clone https://github.com/MLaitarovsky/docpilot.git
 cd docpilot
 
 # Copy env file and add your OpenAI API key
