@@ -13,6 +13,8 @@
 [![CI](https://github.com/MLaitarovsky/docpilot/actions/workflows/ci.yml/badge.svg)](https://github.com/MLaitarovsky/docpilot/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
+🔗 **Live Demo:** [docpilot.vercel.app](https://docpilot.vercel.app)
+
 ## What It Does
 
 Upload PDF contracts (NDAs, service agreements, employment contracts) and DocPilot automatically classifies the document type, extracts key fields like parties, dates, and payment terms using GPT-4o, and flags risky clauses with plain-English explanations. Compare two contracts side-by-side to spot differences at a glance.
