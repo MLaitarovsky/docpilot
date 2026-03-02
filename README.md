@@ -2,7 +2,10 @@
 
 **AI-powered contract review and extraction platform.**
 
-![Screenshot](docs/screenshot.png)
+![Screenshot](docs/comparison_1.png)
+![Screenshot](docs/risks_1.png)
+![Screenshot](docs/comparison_3.png)
+![Screenshot](docs/document_dashboard.png)
 
 [![Next.js](https://img.shields.io/badge/Next.js-15-black?logo=next.js)](https://nextjs.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?logo=fastapi)](https://fastapi.tiangolo.com/)
@@ -12,7 +15,7 @@
 [![OpenAI](https://img.shields.io/badge/OpenAI-GPT--4o-412991?logo=openai)](https://openai.com/)
 [![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)](https://docs.docker.com/compose/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
-[![CI](https://github.com/your-username/docpilot/actions/workflows/ci.yml/badge.svg)](https://github.com/your-username/docpilot/actions)
+[![CI](https://github.com/MLaitarovsky/docpilot/actions/workflows/ci.yml/badge.svg)](https://github.com/MLaitarovsky/docpilot/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 ## What It Does
