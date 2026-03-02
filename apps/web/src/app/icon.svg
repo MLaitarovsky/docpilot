@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- Document body -->
+  <rect x="3" y="1" width="20" height="26" rx="2.5" fill="#0f172a"/>
+  <!-- Folded top-right corner -->
+  <path d="M17 1 L23 7 L17 7 Z" fill="#334155"/>
+  <!-- Text lines -->
+  <rect x="6.5" y="11" width="12" height="2" rx="1" fill="#475569"/>
+  <rect x="6.5" y="15" width="10" height="2" rx="1" fill="#475569"/>
+  <rect x="6.5" y="19" width="8"  height="2" rx="1" fill="#475569"/>
+  <!-- AI sparkle badge -->
+  <circle cx="24" cy="24" r="7" fill="#3b82f6"/>
+  <!-- 4-point star -->
+  <path d="M24 18.5 L25.2 22.8 L29.5 24 L25.2 25.2 L24 29.5 L22.8 25.2 L18.5 24 L22.8 22.8 Z"
+        fill="white"/>
+</svg>
