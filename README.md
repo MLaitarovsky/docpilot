@@ -13,7 +13,7 @@
 [![CI](https://github.com/MLaitarovsky/docpilot/actions/workflows/ci.yml/badge.svg)](https://github.com/MLaitarovsky/docpilot/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-🔗 **Live Demo:** [docpilot.vercel.app](https://docpilot.vercel.app)
+🔗 **Live Demo:** [docpilot-tau.vercel.app](https://docpilot-tau.vercel.app)
 
 ## What It Does
 
