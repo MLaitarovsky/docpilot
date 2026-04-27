@@ -98,7 +98,6 @@ developed, required by law)?
 - One-sided obligations: is only one party bound to confidentiality?
 DO NOT flag: standard recitals, definitions of "Agreement" or "Parties", standard governing law \
 in a reasonable jurisdiction, mutual confidentiality obligations, standard notice periods.""",
-
     "service_agreement": """\
 Service Agreement-specific risk focus — look for:
 - Indemnification: is it mutual? Is it limited to gross negligence or willful misconduct? \
@@ -112,7 +111,6 @@ tools/IP carved out?
 DO NOT flag: standard scopes of work, payment due dates on their own, mutual confidentiality, \
 standard governing law in vendor's home jurisdiction, standard limitation of liability that \
 applies equally to both parties.""",
-
     "employment_contract": """\
 Employment Contract-specific risk focus — look for:
 - Non-compete: geography, duration, industry breadth — is it proportionate to the role?
@@ -123,7 +121,6 @@ Is there a pre-existing IP carve-out?
 - Equity: cliff periods, acceleration on termination/acquisition
 DO NOT flag: standard job duties, compensation amounts by themselves, benefit descriptions, \
 standard at-will employment statements, standard confidentiality obligations.""",
-
     "lease": """\
 Lease Agreement-specific risk focus — look for:
 - Rent escalation: automatic increases without advance notice or a defined cap
