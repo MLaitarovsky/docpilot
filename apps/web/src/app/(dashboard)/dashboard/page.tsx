@@ -3,10 +3,12 @@
 import { useState } from "react";
 import Link from "next/link";
 import {
+  CalendarDays,
   CheckCircle2,
   FileText,
   Loader2,
   Plus,
+  ShieldAlert,
   XCircle,
 } from "lucide-react";
 
@@ -60,17 +62,21 @@ function StatCard({
   value,
   icon: Icon,
   isLoading,
+  iconBg = "bg-muted",
+  iconColor = "text-muted-foreground",
 }: {
   label: string;
   value: number;
   icon: React.ElementType;
   isLoading: boolean;
+  iconBg?: string;
+  iconColor?: string;
 }) {
   return (
     <Card>
       <CardContent className="flex items-center gap-4 pt-6">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted">
-          <Icon className="h-5 w-5 text-muted-foreground" />
+        <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${iconBg}`}>
+          <Icon className={`h-5 w-5 ${iconColor}`} />
         </div>
         <div>
           {isLoading ? (
@@ -98,6 +104,17 @@ export default function DashboardPage() {
     },
     {} as Record<string, number>,
   );
+
+  const highRiskCount = documents.filter((d) => d.risk_score === "red").length;
+
+  const now = new Date();
+  const thisMonthCount = documents.filter((d) => {
+    const date = new Date(d.created_at);
+    return (
+      date.getFullYear() === now.getFullYear() &&
+      date.getMonth() === now.getMonth()
+    );
+  }).length;
 
   const recent = documents.slice(0, 5);
 
@@ -137,7 +154,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Stats grid */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <StatCard
           label="Total Documents"
           value={documents.length}
@@ -149,18 +166,40 @@ export default function DashboardPage() {
           value={counts.completed ?? 0}
           icon={CheckCircle2}
           isLoading={isLoading}
+          iconBg="bg-emerald-100"
+          iconColor="text-emerald-600"
         />
         <StatCard
           label="Processing"
           value={(counts.processing ?? 0) + (counts.uploaded ?? 0)}
           icon={Loader2}
           isLoading={isLoading}
+          iconBg="bg-blue-100"
+          iconColor="text-blue-600"
         />
         <StatCard
           label="Failed"
           value={counts.failed ?? 0}
           icon={XCircle}
           isLoading={isLoading}
+          iconBg="bg-red-100"
+          iconColor="text-red-600"
+        />
+        <StatCard
+          label="High Risk"
+          value={highRiskCount}
+          icon={ShieldAlert}
+          isLoading={isLoading}
+          iconBg="bg-orange-100"
+          iconColor="text-orange-600"
+        />
+        <StatCard
+          label="This Month"
+          value={thisMonthCount}
+          icon={CalendarDays}
+          isLoading={isLoading}
+          iconBg="bg-indigo-100"
+          iconColor="text-indigo-600"
         />
       </div>
 

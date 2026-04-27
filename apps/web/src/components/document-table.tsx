@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { FileText, Loader2, MoreHorizontal, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, FileText, Loader2, MoreHorizontal, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -38,6 +38,9 @@ interface DocumentTableProps {
   documents: Document[];
   isLoading: boolean;
   onRefetch: () => void;
+  sortCol?: string | null;
+  sortDir?: "asc" | "desc";
+  onSort?: (col: string) => void;
 }
 
 // ── Badge colors ──
@@ -130,10 +133,31 @@ function SkeletonRows() {
 
 // ── Main component ──
 
+function SortIcon({
+  col,
+  sortCol,
+  sortDir,
+}: {
+  col: string;
+  sortCol?: string | null;
+  sortDir?: "asc" | "desc";
+}) {
+  if (sortCol !== col)
+    return <ArrowUpDown className="ml-1 h-3 w-3 opacity-40" />;
+  return sortDir === "asc" ? (
+    <ArrowUp className="ml-1 h-3 w-3" />
+  ) : (
+    <ArrowDown className="ml-1 h-3 w-3" />
+  );
+}
+
 export function DocumentTable({
   documents,
   isLoading,
   onRefetch,
+  sortCol,
+  sortDir,
+  onSort,
 }: DocumentTableProps) {
   const router = useRouter();
   const [deleteTarget, setDeleteTarget] = useState<Document | null>(null);
@@ -176,12 +200,60 @@ export function DocumentTable({
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Filename</TableHead>
-            <TableHead>Type</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Risk</TableHead>
-            <TableHead className="text-right">Pages</TableHead>
-            <TableHead>Uploaded</TableHead>
+            <TableHead
+              className="cursor-pointer select-none"
+              onClick={() => onSort?.("filename")}
+            >
+              <div className="flex items-center">
+                Filename
+                <SortIcon col="filename" sortCol={sortCol} sortDir={sortDir} />
+              </div>
+            </TableHead>
+            <TableHead
+              className="cursor-pointer select-none"
+              onClick={() => onSort?.("doc_type")}
+            >
+              <div className="flex items-center">
+                Type
+                <SortIcon col="doc_type" sortCol={sortCol} sortDir={sortDir} />
+              </div>
+            </TableHead>
+            <TableHead
+              className="cursor-pointer select-none"
+              onClick={() => onSort?.("status")}
+            >
+              <div className="flex items-center">
+                Status
+                <SortIcon col="status" sortCol={sortCol} sortDir={sortDir} />
+              </div>
+            </TableHead>
+            <TableHead
+              className="cursor-pointer select-none"
+              onClick={() => onSort?.("risk_score")}
+            >
+              <div className="flex items-center">
+                Risk
+                <SortIcon col="risk_score" sortCol={sortCol} sortDir={sortDir} />
+              </div>
+            </TableHead>
+            <TableHead
+              className="cursor-pointer select-none text-right"
+              onClick={() => onSort?.("page_count")}
+            >
+              <div className="flex items-center justify-end">
+                Pages
+                <SortIcon col="page_count" sortCol={sortCol} sortDir={sortDir} />
+              </div>
+            </TableHead>
+            <TableHead
+              className="cursor-pointer select-none"
+              onClick={() => onSort?.("created_at")}
+            >
+              <div className="flex items-center">
+                Uploaded
+                <SortIcon col="created_at" sortCol={sortCol} sortDir={sortDir} />
+              </div>
+            </TableHead>
             <TableHead className="w-10" />
           </TableRow>
         </TableHeader>

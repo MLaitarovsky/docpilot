@@ -113,6 +113,7 @@ export default function DocumentDetailPage({
   const { document: doc, isLoading, error, refetch } = useDocument(id);
   const [isReprocessing, setIsReprocessing] = useState(false);
   const [reprocessJobId, setReprocessJobId] = useState<string | null>(null);
+  const [clauseFilter, setClauseFilter] = useState<"all" | "high" | "medium" | "low">("all");
 
   async function handleReprocess() {
     setIsReprocessing(true);
@@ -150,6 +151,10 @@ export default function DocumentDetailPage({
   const extraction = doc.extractions?.[0] ?? null;
   const isRtl = RTL_LANGUAGES.has(doc.detected_language ?? "");
   const dir = isRtl ? "rtl" : "ltr";
+  const visibleClauses =
+    clauseFilter === "all"
+      ? doc.clauses
+      : doc.clauses.filter((c) => c.risk_level === clauseFilter);
 
   return (
     <div className="space-y-6 print:space-y-4">
@@ -292,6 +297,27 @@ export default function DocumentDetailPage({
               {/* Missing clauses checklist */}
               <MissingClausesChecklist missingClauses={doc.missing_clauses} />
 
+              {doc.clauses.length > 0 && (
+                <div className="flex flex-wrap items-center gap-1 print:hidden">
+                  {(["all", "high", "medium", "low"] as const).map((f) => (
+                    <Button
+                      key={f}
+                      variant={clauseFilter === f ? "default" : "outline"}
+                      size="sm"
+                      className="h-7 px-3 text-xs"
+                      onClick={() => setClauseFilter(f)}
+                    >
+                      {f === "all" ? "All" : f.charAt(0).toUpperCase() + f.slice(1)}
+                      {f !== "all" && (
+                        <span className="ml-1 opacity-60">
+                          ({doc.clauses.filter((c) => c.risk_level === f).length})
+                        </span>
+                      )}
+                    </Button>
+                  ))}
+                </div>
+              )}
+
               {doc.clauses.length === 0 ? (
                 <div className="rounded-md border border-emerald-200 bg-emerald-50 p-6 text-center">
                   <p className="text-sm font-medium text-emerald-700">
@@ -301,8 +327,12 @@ export default function DocumentDetailPage({
                     This contract appears to contain only standard, routine terms.
                   </p>
                 </div>
+              ) : visibleClauses.length === 0 ? (
+                <p className="py-8 text-center text-sm text-muted-foreground">
+                  No {clauseFilter} risk clauses.
+                </p>
               ) : (
-                doc.clauses.map((clause) => (
+                visibleClauses.map((clause) => (
                   <Card key={clause.id} className="print:break-inside-avoid print:shadow-none">
                     <CardHeader className="pb-3">
                       <div className="flex items-center justify-between gap-3 flex-wrap">

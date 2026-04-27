@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { useMemo, useState } from "react";
+import { ChevronLeft, ChevronRight, Plus, Search } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -12,9 +12,11 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { DocumentTable } from "@/components/document-table";
 import { UploadDropzone } from "@/components/upload-dropzone";
 import { useDocuments } from "@/hooks/use-documents";
+import type { Document } from "@/types/document";
 
 const STATUS_OPTIONS = [
   { value: "", label: "All Statuses" },
@@ -34,10 +36,49 @@ const DOC_TYPE_OPTIONS = [
   { value: "other", label: "Other" },
 ];
 
+const RISK_OPTIONS = [
+  { value: "", label: "All Risks" },
+  { value: "red", label: "High Risk" },
+  { value: "amber", label: "Medium Risk" },
+  { value: "green", label: "Low Risk" },
+];
+
+const RISK_ORDER: Record<string, number> = { red: 0, amber: 1, green: 2 };
+
+type SortCol =
+  | "filename"
+  | "doc_type"
+  | "status"
+  | "risk_score"
+  | "page_count"
+  | "created_at";
+type SortDir = "asc" | "desc";
+
+function getSortValue(doc: Document, col: SortCol): string | number {
+  switch (col) {
+    case "filename":
+      return doc.filename.toLowerCase();
+    case "doc_type":
+      return doc.doc_type ?? "";
+    case "status":
+      return doc.status;
+    case "risk_score":
+      return doc.risk_score != null ? (RISK_ORDER[doc.risk_score] ?? 3) : 3;
+    case "page_count":
+      return doc.page_count ?? -1;
+    case "created_at":
+      return doc.created_at;
+  }
+}
+
 export default function DocumentsPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [docTypeFilter, setDocTypeFilter] = useState<string>("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [riskFilter, setRiskFilter] = useState<string>("");
+  const [sortCol, setSortCol] = useState<SortCol | null>(null);
+  const [sortDir, setSortDir] = useState<SortDir>("asc");
 
   const {
     documents,
@@ -54,6 +95,41 @@ export default function DocumentsPage() {
     status: statusFilter || null,
     docType: docTypeFilter || null,
   });
+
+  const displayedDocuments = useMemo(() => {
+    let result = [...documents];
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter((d) => d.filename.toLowerCase().includes(q));
+    }
+
+    if (riskFilter) {
+      result = result.filter((d) => d.risk_score === riskFilter);
+    }
+
+    if (sortCol) {
+      result.sort((a, b) => {
+        const av = getSortValue(a, sortCol);
+        const bv = getSortValue(b, sortCol);
+        if (av < bv) return sortDir === "asc" ? -1 : 1;
+        if (av > bv) return sortDir === "asc" ? 1 : -1;
+        return 0;
+      });
+    }
+
+    return result;
+  }, [documents, searchQuery, riskFilter, sortCol, sortDir]);
+
+  function handleSort(col: string) {
+    const typedCol = col as SortCol;
+    if (sortCol === typedCol) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortCol(typedCol);
+      setSortDir("asc");
+    }
+  }
 
   function handleUploadComplete() {
     setDialogOpen(false);
@@ -95,7 +171,17 @@ export default function DocumentsPage() {
       </div>
 
       {/* Filters */}
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="relative">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            className="h-9 w-56 pl-8"
+            placeholder="Search by filename…"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+
         <select
           className="flex h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           value={statusFilter}
@@ -119,13 +205,28 @@ export default function DocumentsPage() {
             </option>
           ))}
         </select>
+
+        <select
+          className="flex h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          value={riskFilter}
+          onChange={(e) => setRiskFilter(e.target.value)}
+        >
+          {RISK_OPTIONS.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
       </div>
 
       {/* Document table */}
       <DocumentTable
-        documents={documents}
+        documents={displayedDocuments}
         isLoading={isLoading}
         onRefetch={refetch}
+        sortCol={sortCol}
+        sortDir={sortDir}
+        onSort={handleSort}
       />
 
       {/* Pagination */}

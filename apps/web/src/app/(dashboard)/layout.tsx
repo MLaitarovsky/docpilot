@@ -13,6 +13,8 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { ProcessingNotifier } from "@/components/processing-notifier";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { api } from "@/lib/api-client";
 import { clearTokens, isAuthenticated } from "@/lib/auth";
 import type { User } from "@/types/auth";
@@ -61,7 +63,7 @@ export default function DashboardLayout({
   return (
     <div className="flex min-h-screen">
       {/* Sidebar */}
-      <aside className="flex w-64 flex-col border-r bg-slate-50">
+      <aside className="flex w-64 flex-col border-r bg-muted/40">
         <div className="px-6 py-4">
           <h1 className="text-xl font-bold tracking-tight">DocPilot</h1>
           {user?.team && (
@@ -83,8 +85,8 @@ export default function DashboardLayout({
                 href={item.href}
                 className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
                   active
-                    ? "bg-slate-200 text-slate-900"
-                    : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                    ? "bg-accent text-accent-foreground"
+                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
                 }`}
               >
                 <Icon className="h-4 w-4" />
@@ -103,7 +105,8 @@ export default function DashboardLayout({
             {user?.team?.name ?? ""}
           </span>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
+            <ThemeToggle />
             <span className="text-sm font-medium">
               {user?.full_name ?? "Loading..."}
             </span>
@@ -116,6 +119,7 @@ export default function DashboardLayout({
 
         {/* Page content */}
         <main className="flex-1 overflow-y-auto p-6">{children}</main>
+        <ProcessingNotifier />
       </div>
     </div>
   );
