@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import Link from "next/link";
 import { CheckCircle2, XCircle, Loader2 } from "lucide-react";
 
@@ -8,13 +9,15 @@ import { Progress } from "@/components/ui/progress";
 import { useJobProgress } from "@/hooks/use-sse";
 
 interface ProcessingProgressProps {
-  jobId: string;
+  jobId: string | null;
   documentId: string;
+  onComplete?: () => void;
 }
 
 export function ProcessingProgress({
   jobId,
   documentId,
+  onComplete,
 }: ProcessingProgressProps) {
   const { progress } = useJobProgress(jobId);
 
@@ -23,6 +26,12 @@ export function ProcessingProgress({
   const message = progress?.message ?? "Starting pipeline...";
   const pct = progress?.progress ?? 0;
   const status = progress?.status ?? "processing";
+
+  useEffect(() => {
+    if (status === "completed") {
+      onComplete?.();
+    }
+  }, [status, onComplete]);
 
   if (status === "completed") {
     return (
@@ -33,12 +42,14 @@ export function ProcessingProgress({
         <div className="text-center">
           <p className="font-semibold text-emerald-700">Processing Complete</p>
           <p className="mt-1 text-sm text-muted-foreground">
-            All {totalSteps} steps finished successfully.
+            {onComplete ? "Loading results…" : `All ${totalSteps} steps finished successfully.`}
           </p>
         </div>
-        <Button asChild>
-          <Link href={`/documents/${documentId}`}>View Results</Link>
-        </Button>
+        {!onComplete && (
+          <Button asChild>
+            <Link href={`/documents/${documentId}`}>View Results</Link>
+          </Button>
+        )}
       </div>
     );
   }

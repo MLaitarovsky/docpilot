@@ -11,7 +11,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8001";
  * Connects to GET /api/jobs/{jobId}/status using the EventSource API.
  * Auto-closes when progress reaches 100 (success) or -1 (failure).
  */
-export function useJobProgress(jobId: string | null) {
+export function useJobProgress(jobId: string | null | undefined) {
   const [progress, setProgress] = useState<JobProgress | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const sourceRef = useRef<EventSource | null>(null);

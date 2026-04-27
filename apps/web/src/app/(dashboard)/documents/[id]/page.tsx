@@ -23,7 +23,6 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ClauseRiskBadge } from "@/components/clause-risk-badge";
-import { ConfidenceIndicator } from "@/components/confidence-indicator";
 import { ExtractionCard } from "@/components/extraction-card";
 import { MissingClausesChecklist } from "@/components/missing-clauses-checklist";
 import { ProcessingProgress } from "@/components/processing-progress";
@@ -113,13 +112,13 @@ export default function DocumentDetailPage({
   const { id } = use(params);
   const { document: doc, isLoading, error, refetch } = useDocument(id);
   const [isReprocessing, setIsReprocessing] = useState(false);
+  const [reprocessJobId, setReprocessJobId] = useState<string | null>(null);
 
   async function handleReprocess() {
     setIsReprocessing(true);
     try {
-      await api.post(`/api/documents/${id}/reprocess`);
-      toast.success("Re-processing started. This may take a moment.");
-      refetch();
+      const res = await api.post<{ task_id: string }>(`/api/documents/${id}/reprocess`);
+      setReprocessJobId(res.task_id);
     } catch (err) {
       const msg =
         err instanceof ApiError ? err.message : "Failed to re-process document.";
@@ -246,20 +245,33 @@ export default function DocumentDetailPage({
 
       <Separator />
 
-      {/* If still processing, show progress instead of tabs */}
-      {doc.status === "processing" && (
+      {/* Active reprocess — live SSE progress */}
+      {reprocessJobId && (
         <Card>
           <CardContent className="pt-6">
-            <ProcessingProgress jobId="" documentId={doc.id} />
-            <p className="mt-2 text-center text-xs text-muted-foreground">
-              Refresh the page to check for updated results.
-            </p>
+            <ProcessingProgress
+              jobId={reprocessJobId}
+              documentId={doc.id}
+              onComplete={() => {
+                setReprocessJobId(null);
+                refetch();
+              }}
+            />
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Initial processing (no job ID available) */}
+      {doc.status === "processing" && !reprocessJobId && (
+        <Card>
+          <CardContent className="pt-6">
+            <ProcessingProgress jobId={null} documentId={doc.id} />
           </CardContent>
         </Card>
       )}
 
       {/* Completed — show tabs */}
-      {doc.status === "completed" && (
+      {doc.status === "completed" && !reprocessJobId && (
         <Tabs defaultValue="risks">
           <TabsList className="print:hidden">
             <TabsTrigger value="risks">
@@ -305,7 +317,6 @@ export default function DocumentDetailPage({
                             </span>
                           )}
                           <ClauseRiskBadge riskLevel={clause.risk_level} />
-                          <ConfidenceIndicator confidence={clause.confidence} />
                         </div>
                       </div>
                     </CardHeader>
@@ -391,8 +402,8 @@ export default function DocumentDetailPage({
         </Tabs>
       )}
 
-      {/* Re-process button (visible for completed and failed) */}
-      {(doc.status === "completed" || doc.status === "failed") && (
+      {/* Re-process button (visible for completed and failed, hidden while reprocessing) */}
+      {(doc.status === "completed" || doc.status === "failed") && !reprocessJobId && (
         <div className="flex justify-center print:hidden">
           <Button
             variant="outline"

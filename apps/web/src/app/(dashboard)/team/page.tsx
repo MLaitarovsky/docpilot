@@ -280,6 +280,11 @@ export default function TeamPage() {
                     value={invitePassword}
                     onChange={(e) => setInvitePassword(e.target.value)}
                   />
+                  {invitePassword.length > 0 && invitePassword.length < 8 && (
+                    <p className="text-xs text-destructive">
+                      Password must be at least 8 characters ({invitePassword.length}/8)
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="invite-role">Role</Label>
