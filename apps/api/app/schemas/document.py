@@ -29,6 +29,8 @@ class ClauseResponse(BaseModel):
     plain_summary: str | None = None
     risk_level: str | None = None
     risk_reason: str | None = None
+    suggested_alternative: str | None = None
+    unfavorable_to: str | None = None
     confidence: Decimal | None = None
     page_number: int | None = None
     created_at: datetime
@@ -50,6 +52,8 @@ class DocumentResponse(BaseModel):
     page_count: int | None = None
     doc_type: str | None = None
     status: str
+    risk_score: str | None = None
+    detected_language: str | None = None
     created_at: datetime
     updated_at: datetime | None = None
 
@@ -75,6 +79,10 @@ class DocumentDetailResponse(BaseModel):
     raw_text: str | None = None
     doc_type: str | None = None
     status: str
+    executive_summary: str | None = None
+    risk_score: str | None = None
+    missing_clauses: list[Any] | None = None
+    detected_language: str | None = None
     created_at: datetime
     updated_at: datetime | None = None
     extractions: list[ExtractionResponse] = []

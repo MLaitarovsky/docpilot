@@ -60,12 +60,31 @@ BAD: "Unclear payment terms could lead to disputes."
 GOOD: "The payment clause references 'reasonable fees' without defining a rate or cap. If \
 disputed, the vendor could claim any amount and the client has no contractual basis to challenge it."
 
-BAD: "Indemnification clause may expose one party to liability."
-GOOD: "Indemnification is one-sided: Client indemnifies Vendor against all third-party claims, \
-with no reciprocal obligation. If Vendor's deliverables cause a lawsuit, Client bears the full cost."
+## suggested_alternative — concrete, actionable:
+BAD: "Negotiate better terms."
+GOOD: "Ask to add: 'Each party shall indemnify the other only for claims arising from its own \
+gross negligence or willful misconduct, limited to the total fees paid under this Agreement.'"
+
+## unfavorable_to — who bears the risk:
+Use one of: "Signing party", "Client", "Vendor", "Employee", "Tenant", "Landlord", "Both parties"
+Choose based on who is disadvantaged by this clause as written.
+
+## Overall risk score:
+- red: One or more high-risk clauses present. Do not sign without legal review.
+- amber: Medium-risk issues found. Review carefully; consider negotiating.
+- green: Only low-risk items or no issues. Relatively safe to sign.
+
+## Missing clauses — list clause types that are conspicuously absent for this contract type:
+Use only types from: limitation_of_liability, confidentiality, ip_ownership, termination_for_cause, \
+governing_law, dispute_resolution, data_protection, severability, payment_terms, non_solicitation
+Only list a type as missing if its absence creates real exposure — not just because it's common.
 
 Respond with a JSON object:
 {
+  "executive_summary": "2–4 sentence plain-English summary of what this contract is and the \
+main risks. Write as if explaining to a non-lawyer.",
+  "risk_score": "red | amber | green",
+  "missing_clauses": ["limitation_of_liability", "..."],
   "clauses": [
     {
       "clause_type": "indemnification | limitation_of_liability | termination | non_compete | \
@@ -76,6 +95,8 @@ non_solicitation | penalty | amendment | rights_waiver | missing_protection",
       "risk_level": "low | medium | high",
       "risk_reason": "specific explanation of the risk, what could go wrong, and what a fairer \
 version would look like",
+      "suggested_alternative": "concrete language the signing party should ask for instead",
+      "unfavorable_to": "Signing party | Client | Vendor | Employee | Tenant | Landlord | Both parties",
       "confidence": 0.85,
       "page_number": 1
     }
@@ -83,7 +104,7 @@ version would look like",
 }
 
 Only return valid JSON. No extra text. If there are NO genuinely risky clauses, \
-return {"clauses": []}."""
+return {"executive_summary": "...", "risk_score": "green", "missing_clauses": [], "clauses": []}."""
 
 
 _DOC_TYPE_FOCUS = {
@@ -135,10 +156,20 @@ access provisions (with 24-hour notice), standard sublease restrictions.""",
 }
 
 
-def build_user_prompt(text: str, doc_type: str) -> str:
-    """Build the user message with document text, type, and type-specific focus guidance."""
+def build_user_prompt(text: str, doc_type: str, language: str = "en") -> str:
+    """Build the user message with document text, type, type-specific focus, and language."""
     focus = _DOC_TYPE_FOCUS.get(doc_type, "")
     focus_block = f"\n\n{focus}\n" if focus else ""
+
+    lang_instruction = ""
+    if language and language != "en":
+        lang_instruction = (
+            f"\n\nIMPORTANT: This document is written in language code '{language}'. "
+            f"Write all human-readable output fields (executive_summary, plain_summary, "
+            f"risk_reason, suggested_alternative) in that same language. "
+            f"Keep clause_type, risk_level, unfavorable_to, and JSON keys in English."
+        )
+
     return (
         f"Document type: {doc_type}"
         f"{focus_block}\n"
@@ -146,4 +177,5 @@ def build_user_prompt(text: str, doc_type: str) -> str:
         f"risk. Skip all standard boilerplate — only include what a lawyer would actually push "
         f"back on.\n\n"
         f"{text}"
+        f"{lang_instruction}"
     )

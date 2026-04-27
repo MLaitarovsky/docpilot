@@ -20,6 +20,8 @@ export interface Clause {
   plain_summary: string;
   risk_level: "low" | "medium" | "high";
   risk_reason: string;
+  suggested_alternative: string | null;
+  unfavorable_to: string | null;
   confidence: number;
   page_number: number | null;
 }

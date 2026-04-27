@@ -34,6 +34,8 @@ class Clause(Base):
         default=None,
     )
     page_number: Mapped[int | None] = mapped_column(Integer, default=None)
+    suggested_alternative: Mapped[str | None] = mapped_column(Text, default=None)
+    unfavorable_to: Mapped[str | None] = mapped_column(String(50), default=None)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(UTC),

@@ -8,6 +8,43 @@
   }
 }
 
+@media print {
+  /* Hide nav, sidebar, buttons, tabs */
+  nav,
+  aside,
+  header,
+  [data-sidebar],
+  .print\:hidden {
+    display: none !important;
+  }
+
+  /* Reset page margins */
+  @page {
+    margin: 1.5cm;
+  }
+
+  body {
+    font-size: 11pt;
+    color: #000;
+    background: #fff;
+  }
+
+  /* Ensure cards look clean without shadows */
+  .print\:shadow-none {
+    box-shadow: none !important;
+  }
+
+  /* Keep risk cards together across pages */
+  .print\:break-inside-avoid {
+    break-inside: avoid;
+  }
+
+  /* Force risk tab content visible */
+  .print\:block {
+    display: block !important;
+  }
+}
+
 
 
 @layer base {

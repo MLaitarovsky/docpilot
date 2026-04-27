@@ -2,13 +2,14 @@
 
 SYSTEM_PROMPT = """\
 You are a legal document classifier. Given the first few pages of a contract, \
-determine the document type.
+determine the document type and the language it is written in.
 
 Respond with a JSON object:
 {
   "doc_type": "<one of: nda, service_agreement, employment_contract, lease, saas_terms, other>",
   "confidence": <float 0.0–1.0>,
-  "reasoning": "<one sentence explaining your classification>"
+  "reasoning": "<one sentence explaining your classification>",
+  "detected_language": "<ISO 639-1 two-letter language code, e.g. en, he, ar, fr, de, es, pt, ru, zh>"
 }
 
 Rules:

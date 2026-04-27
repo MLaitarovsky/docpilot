@@ -4,6 +4,7 @@ import uuid
 from typing import TYPE_CHECKING
 
 from sqlalchemy import BigInteger, ForeignKey, Integer, String, Text
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base, TimestampMixin
@@ -31,6 +32,10 @@ class Document(TimestampMixin, Base):
     raw_text: Mapped[str | None] = mapped_column(Text, default=None)
     doc_type: Mapped[str | None] = mapped_column(String(50), default=None)
     status: Mapped[str] = mapped_column(String(20), default="uploaded")
+    executive_summary: Mapped[str | None] = mapped_column(Text, default=None)
+    risk_score: Mapped[str | None] = mapped_column(String(10), default=None)
+    missing_clauses: Mapped[list | None] = mapped_column(JSONB, default=None)
+    detected_language: Mapped[str | None] = mapped_column(String(10), default=None)
 
     # Relationships
     team: Mapped["Team"] = relationship(back_populates="documents")

@@ -7,6 +7,7 @@ import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { RiskScoreBadge } from "@/components/risk-score-badge";
 import {
   Dialog,
   DialogContent,
@@ -110,6 +111,9 @@ function SkeletonRows() {
             <Skeleton className="h-5 w-20" />
           </TableCell>
           <TableCell>
+            <Skeleton className="h-5 w-20" />
+          </TableCell>
+          <TableCell>
             <Skeleton className="h-4 w-8" />
           </TableCell>
           <TableCell>
@@ -175,6 +179,7 @@ export function DocumentTable({
             <TableHead>Filename</TableHead>
             <TableHead>Type</TableHead>
             <TableHead>Status</TableHead>
+            <TableHead>Risk</TableHead>
             <TableHead className="text-right">Pages</TableHead>
             <TableHead>Uploaded</TableHead>
             <TableHead className="w-10" />
@@ -215,6 +220,9 @@ export function DocumentTable({
                   <Badge className={STATUS_STYLES[doc.status] ?? STATUS_STYLES.uploaded}>
                     {doc.status.charAt(0).toUpperCase() + doc.status.slice(1)}
                   </Badge>
+                </TableCell>
+                <TableCell>
+                  <RiskScoreBadge score={doc.risk_score ?? null} />
                 </TableCell>
                 <TableCell className="text-right tabular-nums">
                   {doc.page_count ?? "—"}

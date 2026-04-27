@@ -76,6 +76,7 @@ class ExtractionPipeline:
         self.page_map: list[dict] = []
         self.chunks: list[dict] = []
         self.doc_type: str = "other"
+        self.detected_language: str = "en"
 
     def _publish(self, step: int, message: str, progress: int) -> None:
         """Publish a progress update to Redis."""
@@ -178,13 +179,18 @@ class ExtractionPipeline:
         raw_type = result.get("doc_type", "other")
         self.doc_type = raw_type if raw_type in VALID_DOC_TYPES else "other"
 
+        lang = result.get("detected_language", "en") or "en"
+        self.detected_language = lang[:10]  # guard against malformed responses
+
         self.document.doc_type = self.doc_type
+        self.document.detected_language = self.detected_language
         self.db.commit()
 
         logger.info(
-            "Classified as '%s' (confidence: %s)",
+            "Classified as '%s' (confidence: %s, language: %s)",
             self.doc_type,
             result.get("confidence"),
+            self.detected_language,
         )
 
     # ── Step 4: Extract fields based on doc_type ───────
@@ -228,9 +234,17 @@ class ExtractionPipeline:
         logger.info("Step 5/5 — Analyzing clauses")
 
         combined_text = "\n\n".join(c["text"] for c in self.chunks)[:12000]
-        user_prompt = analyze_clauses.build_user_prompt(combined_text, self.doc_type)
+        user_prompt = analyze_clauses.build_user_prompt(
+            combined_text, self.doc_type, self.detected_language
+        )
 
         result = call_llm(analyze_clauses.SYSTEM_PROMPT, user_prompt)
+
+        # Store document-level enrichment
+        self.document.executive_summary = result.get("executive_summary")
+        self.document.risk_score = result.get("risk_score")
+        missing = result.get("missing_clauses")
+        self.document.missing_clauses = missing if isinstance(missing, list) else []
 
         clauses_data = result.get("clauses", [])
         for item in clauses_data:
@@ -249,10 +263,12 @@ class ExtractionPipeline:
                 plain_summary=item.get("plain_summary"),
                 risk_level=item.get("risk_level"),
                 risk_reason=item.get("risk_reason"),
+                suggested_alternative=item.get("suggested_alternative"),
+                unfavorable_to=item.get("unfavorable_to"),
                 confidence=confidence,
                 page_number=item.get("page_number"),
             )
             self.db.add(clause)
 
         self.db.commit()
-        logger.info("Saved %d clauses", len(clauses_data))
+        logger.info("Saved %d clauses (risk_score=%s)", len(clauses_data), self.document.risk_score)

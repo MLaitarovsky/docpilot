@@ -3,13 +3,16 @@
 import { use, useState } from "react";
 import Link from "next/link";
 import {
+  AlertTriangle,
   Calendar,
   ChevronRight,
+  Download,
   File,
   FileText,
   Hash,
   Loader2,
   RotateCcw,
+  User,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -22,7 +25,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ClauseRiskBadge } from "@/components/clause-risk-badge";
 import { ConfidenceIndicator } from "@/components/confidence-indicator";
 import { ExtractionCard } from "@/components/extraction-card";
+import { MissingClausesChecklist } from "@/components/missing-clauses-checklist";
 import { ProcessingProgress } from "@/components/processing-progress";
+import { RiskScoreBadge } from "@/components/risk-score-badge";
 import { api, ApiError } from "@/lib/api-client";
 import { useDocument } from "@/hooks/use-documents";
 
@@ -49,6 +54,8 @@ const DOC_TYPE_STYLES: Record<string, string> = {
   other: "bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-100",
 };
 
+const RTL_LANGUAGES = new Set(["he", "ar", "fa", "ur"]);
+
 function formatDocType(type: string | null): string {
   if (!type) return "Pending";
   return type.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
@@ -68,6 +75,10 @@ function formatSize(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function formatClauseType(type: string): string {
+  return type.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 // ── Loading skeleton ──
@@ -118,6 +129,10 @@ export default function DocumentDetailPage({
     }
   }
 
+  function handleExportPdf() {
+    window.print();
+  }
+
   if (isLoading) return <DetailSkeleton />;
 
   if (error || !doc) {
@@ -134,11 +149,13 @@ export default function DocumentDetailPage({
   }
 
   const extraction = doc.extractions?.[0] ?? null;
+  const isRtl = RTL_LANGUAGES.has(doc.detected_language ?? "");
+  const dir = isRtl ? "rtl" : "ltr";
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 print:space-y-4">
       {/* Breadcrumbs */}
-      <nav className="flex items-center gap-1.5 text-sm text-muted-foreground">
+      <nav className="flex items-center gap-1.5 text-sm text-muted-foreground print:hidden">
         <Link
           href="/documents"
           className="hover:text-foreground transition-colors"
@@ -153,24 +170,41 @@ export default function DocumentDetailPage({
 
       {/* Header */}
       <div>
-        <div className="flex items-center gap-3 flex-wrap">
-          <h2 className="text-2xl font-bold tracking-tight truncate max-w-xl">
-            {doc.filename}
-          </h2>
-          {doc.doc_type && (
+        <div className="flex items-center gap-3 flex-wrap justify-between">
+          <div className="flex items-center gap-3 flex-wrap">
+            <h2 className="text-2xl font-bold tracking-tight truncate max-w-xl">
+              {doc.filename}
+            </h2>
+            {doc.doc_type && (
+              <Badge
+                className={
+                  DOC_TYPE_STYLES[doc.doc_type] ?? DOC_TYPE_STYLES.other
+                }
+              >
+                {formatDocType(doc.doc_type)}
+              </Badge>
+            )}
             <Badge
-              className={
-                DOC_TYPE_STYLES[doc.doc_type] ?? DOC_TYPE_STYLES.other
-              }
+              className={STATUS_STYLES[doc.status] ?? STATUS_STYLES.uploaded}
             >
-              {formatDocType(doc.doc_type)}
+              {doc.status.charAt(0).toUpperCase() + doc.status.slice(1)}
             </Badge>
+            {doc.status === "completed" && doc.risk_score && (
+              <RiskScoreBadge score={doc.risk_score} />
+            )}
+          </div>
+
+          {doc.status === "completed" && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportPdf}
+              className="print:hidden shrink-0"
+            >
+              <Download className="h-4 w-4" />
+              Export PDF
+            </Button>
           )}
-          <Badge
-            className={STATUS_STYLES[doc.status] ?? STATUS_STYLES.uploaded}
-          >
-            {doc.status.charAt(0).toUpperCase() + doc.status.slice(1)}
-          </Badge>
         </div>
 
         <div className="mt-2 flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
@@ -188,8 +222,27 @@ export default function DocumentDetailPage({
             <File className="h-3.5 w-3.5" />
             {formatSize(doc.file_size_bytes)}
           </span>
+          {doc.detected_language && doc.detected_language !== "en" && (
+            <span className="flex items-center gap-1 uppercase font-medium text-xs tracking-wide">
+              {doc.detected_language}
+            </span>
+          )}
         </div>
       </div>
+
+      {/* Executive Summary */}
+      {doc.status === "completed" && doc.executive_summary && (
+        <Card className="border-slate-200 bg-slate-50 print:border print:shadow-none">
+          <CardContent className="pt-4 pb-4">
+            <p
+              className="text-sm leading-relaxed text-slate-700"
+              dir={dir}
+            >
+              {doc.executive_summary}
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       <Separator />
 
@@ -207,9 +260,8 @@ export default function DocumentDetailPage({
 
       {/* Completed — show tabs */}
       {doc.status === "completed" && (
-        <Tabs defaultValue="fields">
-          <TabsList>
-            <TabsTrigger value="fields">Extracted Fields</TabsTrigger>
+        <Tabs defaultValue="risks">
+          <TabsList className="print:hidden">
             <TabsTrigger value="risks">
               Risk Analysis
               {doc.clauses.length > 0 && (
@@ -218,8 +270,84 @@ export default function DocumentDetailPage({
                 </span>
               )}
             </TabsTrigger>
+            <TabsTrigger value="fields">Extracted Fields</TabsTrigger>
             <TabsTrigger value="raw">Raw Text</TabsTrigger>
           </TabsList>
+
+          {/* ── Risk Analysis ── */}
+          <TabsContent value="risks" className="mt-4 print:block">
+            <div className="space-y-4">
+              {/* Missing clauses checklist */}
+              <MissingClausesChecklist missingClauses={doc.missing_clauses} />
+
+              {doc.clauses.length === 0 ? (
+                <div className="rounded-md border border-emerald-200 bg-emerald-50 p-6 text-center">
+                  <p className="text-sm font-medium text-emerald-700">
+                    No risky clauses identified
+                  </p>
+                  <p className="mt-1 text-xs text-emerald-600">
+                    This contract appears to contain only standard, routine terms.
+                  </p>
+                </div>
+              ) : (
+                doc.clauses.map((clause) => (
+                  <Card key={clause.id} className="print:break-inside-avoid print:shadow-none">
+                    <CardHeader className="pb-3">
+                      <div className="flex items-center justify-between gap-3 flex-wrap">
+                        <CardTitle className="text-sm font-semibold">
+                          {formatClauseType(clause.clause_type)}
+                        </CardTitle>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {clause.unfavorable_to && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600 border border-slate-200">
+                              <User className="h-3 w-3" />
+                              Unfavorable to: {clause.unfavorable_to}
+                            </span>
+                          )}
+                          <ClauseRiskBadge riskLevel={clause.risk_level} />
+                          <ConfidenceIndicator confidence={clause.confidence} />
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-3" dir={dir}>
+                      {/* Original text */}
+                      <blockquote className="border-l-2 border-muted-foreground/20 pl-4 text-sm text-muted-foreground italic">
+                        &ldquo;{clause.original_text}&rdquo;
+                      </blockquote>
+
+                      {/* Plain summary */}
+                      <p className="text-sm">{clause.plain_summary}</p>
+
+                      {/* Risk reason */}
+                      {(clause.risk_level === "medium" ||
+                        clause.risk_level === "high") &&
+                        clause.risk_reason && (
+                          <div className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                            <span className="font-medium">Why this is flagged: </span>
+                            {clause.risk_reason}
+                          </div>
+                        )}
+
+                      {/* Suggested alternative */}
+                      {clause.suggested_alternative && (
+                        <div className="rounded-md bg-blue-50 px-3 py-2 text-sm text-blue-800">
+                          <span className="font-medium">Suggested language: </span>
+                          {clause.suggested_alternative}
+                        </div>
+                      )}
+
+                      {/* Page ref */}
+                      {clause.page_number && (
+                        <p className="text-xs text-muted-foreground">
+                          Page {clause.page_number}
+                        </p>
+                      )}
+                    </CardContent>
+                  </Card>
+                ))
+              )}
+            </div>
+          </TabsContent>
 
           {/* ── Extracted Fields ── */}
           <TabsContent value="fields" className="mt-4">
@@ -241,69 +369,15 @@ export default function DocumentDetailPage({
             )}
           </TabsContent>
 
-          {/* ── Risk Analysis ── */}
-          <TabsContent value="risks" className="mt-4">
-            {doc.clauses.length === 0 ? (
-              <p className="py-8 text-center text-sm text-muted-foreground">
-                No clauses were identified.
-              </p>
-            ) : (
-              <div className="space-y-4">
-                {doc.clauses.map((clause) => (
-                  <Card key={clause.id}>
-                    <CardHeader className="pb-3">
-                      <div className="flex items-center justify-between gap-3 flex-wrap">
-                        <CardTitle className="text-sm font-semibold">
-                          {clause.clause_type
-                            .replace(/_/g, " ")
-                            .replace(/\b\w/g, (c) => c.toUpperCase())}
-                        </CardTitle>
-                        <div className="flex items-center gap-2">
-                          <ClauseRiskBadge riskLevel={clause.risk_level} />
-                          <ConfidenceIndicator
-                            confidence={clause.confidence}
-                          />
-                        </div>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      {/* Original text */}
-                      <blockquote className="border-l-2 border-muted-foreground/20 pl-4 text-sm text-muted-foreground italic">
-                        &ldquo;{clause.original_text}&rdquo;
-                      </blockquote>
-
-                      {/* Plain summary */}
-                      <p className="text-sm">{clause.plain_summary}</p>
-
-                      {/* Risk reason (medium/high only) */}
-                      {(clause.risk_level === "medium" ||
-                        clause.risk_level === "high") &&
-                        clause.risk_reason && (
-                          <div className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800">
-                            <span className="font-medium">Why this is flagged: </span>
-                            {clause.risk_reason}
-                          </div>
-                        )}
-
-                      {/* Page ref */}
-                      {clause.page_number && (
-                        <p className="text-xs text-muted-foreground">
-                          Page {clause.page_number}
-                        </p>
-                      )}
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </TabsContent>
-
           {/* ── Raw Text ── */}
           <TabsContent value="raw" className="mt-4">
             {doc.raw_text ? (
               <Card>
                 <CardContent className="pt-6">
-                  <pre className="max-h-[600px] overflow-auto whitespace-pre-wrap rounded-md bg-muted p-4 font-mono text-xs leading-relaxed">
+                  <pre
+                    className="max-h-[600px] overflow-auto whitespace-pre-wrap rounded-md bg-muted p-4 font-mono text-xs leading-relaxed"
+                    dir={dir}
+                  >
                     {doc.raw_text}
                   </pre>
                 </CardContent>
@@ -319,7 +393,7 @@ export default function DocumentDetailPage({
 
       {/* Re-process button (visible for completed and failed) */}
       {(doc.status === "completed" || doc.status === "failed") && (
-        <div className="flex justify-center">
+        <div className="flex justify-center print:hidden">
           <Button
             variant="outline"
             onClick={handleReprocess}
@@ -344,6 +418,7 @@ export default function DocumentDetailPage({
       {doc.status === "failed" && (
         <Card className="border-red-200">
           <CardContent className="flex flex-col items-center gap-2 py-10">
+            <AlertTriangle className="h-8 w-8 text-red-400" />
             <p className="font-medium text-red-700">Processing Failed</p>
             <p className="text-sm text-muted-foreground">
               The extraction pipeline encountered an error. Click &ldquo;Re-process
