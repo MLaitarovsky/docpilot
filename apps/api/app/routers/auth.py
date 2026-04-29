@@ -18,6 +18,7 @@ from app.schemas.auth import (
     RefreshRequest,
     RegisterRequest,
     TokenResponse,
+    UpdateProfileRequest,
     UserResponse,
 )
 from app.services.auth_service import (
@@ -213,5 +214,45 @@ async def me(current_user: User = Depends(get_current_user)):
     """Return the currently authenticated user's profile."""
     return {
         "data": UserResponse.model_validate(current_user).model_dump(),
+        "error": None,
+    }
+
+
+# ── PATCH /api/auth/me ────────────────────────────────
+
+
+@router.patch("/me")
+async def update_me(
+    body: UpdateProfileRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Update the current user's name and/or password."""
+    if body.full_name is not None:
+        current_user.full_name = body.full_name
+
+    if body.new_password is not None:
+        if body.current_password is None or not verify_password(
+            body.current_password, current_user.password_hash
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={
+                    "data": None,
+                    "error": {
+                        "message": "Current password is incorrect.",
+                        "code": "AUTH_WRONG_PASSWORD",
+                    },
+                },
+            )
+        current_user.password_hash = hash_password(body.new_password)
+
+    await db.commit()
+    result = await db.execute(
+        select(User).options(selectinload(User.team)).where(User.id == current_user.id)
+    )
+    updated_user = result.scalar_one()
+    return {
+        "data": UserResponse.model_validate(updated_user).model_dump(),
         "error": None,
     }

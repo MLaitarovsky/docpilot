@@ -5,7 +5,9 @@ import Link from "next/link";
 import {
   AlertTriangle,
   Calendar,
+  Check,
   ChevronRight,
+  Copy,
   Download,
   File,
   FileText,
@@ -78,6 +80,41 @@ function formatSize(bytes: number) {
 
 function formatClauseType(type: string): string {
   return type.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+// ── Copy button ──
+
+function CopyButton({ text, label }: { text: string; label?: string }) {
+  const [copied, setCopied] = useState(false);
+
+  function handleCopy() {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    });
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={handleCopy}
+      className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+      title="Copy to clipboard"
+      aria-label={label ?? "Copy"}
+    >
+      {copied ? (
+        <>
+          <Check className="h-3 w-3 text-emerald-500" />
+          <span className="text-emerald-600">Copied</span>
+        </>
+      ) : (
+        <>
+          <Copy className="h-3 w-3" />
+          <span>Copy</span>
+        </>
+      )}
+    </button>
+  );
 }
 
 // ── Loading skeleton ──
@@ -347,6 +384,12 @@ export default function DocumentDetailPage({
                             </span>
                           )}
                           <ClauseRiskBadge riskLevel={clause.risk_level} />
+                          <span className="print:hidden">
+                            <CopyButton
+                              text={clause.original_text}
+                              label="Copy clause text"
+                            />
+                          </span>
                         </div>
                       </div>
                     </CardHeader>

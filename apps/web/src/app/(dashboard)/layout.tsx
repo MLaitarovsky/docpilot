@@ -8,6 +8,7 @@ import {
   GitCompareArrows,
   LayoutDashboard,
   LogOut,
+  Settings,
   Users,
 } from "lucide-react";
 
@@ -24,6 +25,7 @@ const NAV_ITEMS = [
   { label: "Documents", href: "/documents", icon: FileText },
   { label: "Compare", href: "/compare", icon: GitCompareArrows },
   { label: "Team", href: "/team", icon: Users },
+  { label: "Settings", href: "/settings", icon: Settings },
 ];
 
 export default function DashboardLayout({
@@ -34,6 +36,7 @@ export default function DashboardLayout({
   const router = useRouter();
   const pathname = usePathname();
   const [user, setUser] = useState<User | null>(null);
+  const [processingCount, setProcessingCount] = useState(0);
 
   useEffect(() => {
     if (!isAuthenticated()) {
@@ -49,6 +52,30 @@ export default function DashboardLayout({
         router.replace("/");
       });
   }, [router]);
+
+  useEffect(() => {
+    if (!isAuthenticated()) return;
+
+    async function poll() {
+      try {
+        const data = await api.get<{
+          documents: Array<{ status: string }>;
+          total: number;
+        }>("/api/documents?limit=100&offset=0");
+        setProcessingCount(
+          data.documents.filter(
+            (d) => d.status === "processing" || d.status === "uploaded",
+          ).length,
+        );
+      } catch {
+        // silent — badge is non-critical
+      }
+    }
+
+    poll();
+    const timer = setInterval(poll, 15_000);
+    return () => clearInterval(timer);
+  }, []);
 
   function handleLogout() {
     clearTokens();
@@ -91,6 +118,11 @@ export default function DashboardLayout({
               >
                 <Icon className="h-4 w-4" />
                 {item.label}
+                {item.href === "/documents" && processingCount > 0 && (
+                  <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-blue-500 px-1 text-[10px] font-semibold text-white animate-pulse">
+                    {processingCount > 9 ? "9+" : processingCount}
+                  </span>
+                )}
               </Link>
             );
           })}

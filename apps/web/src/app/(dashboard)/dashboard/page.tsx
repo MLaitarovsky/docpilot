@@ -11,6 +11,14 @@ import {
   ShieldAlert,
   XCircle,
 } from "lucide-react";
+import {
+  Cell,
+  Legend,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+} from "recharts";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -26,6 +34,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { UploadDropzone } from "@/components/upload-dropzone";
 import { useDocuments } from "@/hooks/use-documents";
+import type { Document } from "@/types/document";
 
 // ── Helpers ──
 
@@ -53,6 +62,87 @@ function timeAgo(iso: string): string {
     month: "short",
     day: "numeric",
   });
+}
+
+// ── Risk distribution chart ──
+
+const RISK_COLORS: Record<string, string> = {
+  red: "#ef4444",
+  amber: "#f59e0b",
+  green: "#10b981",
+};
+
+const RISK_LABELS: Record<string, string> = {
+  red: "High Risk",
+  amber: "Medium Risk",
+  green: "Low Risk",
+};
+
+interface RiskChartProps {
+  documents: Document[];
+  isLoading: boolean;
+}
+
+function RiskChart({ documents, isLoading }: RiskChartProps) {
+  if (isLoading) {
+    return <Skeleton className="h-[220px] w-full" />;
+  }
+
+  const counts: Record<string, number> = { red: 0, amber: 0, green: 0 };
+  for (const doc of documents) {
+    if (doc.status === "completed" && doc.risk_score) {
+      counts[doc.risk_score] = (counts[doc.risk_score] ?? 0) + 1;
+    }
+  }
+
+  const data = (["red", "amber", "green"] as const)
+    .map((key) => ({
+      name: RISK_LABELS[key],
+      value: counts[key],
+      color: RISK_COLORS[key],
+    }))
+    .filter((d) => d.value > 0);
+
+  if (data.length === 0) {
+    return (
+      <p className="py-12 text-center text-sm text-muted-foreground">
+        No completed documents yet. Upload a contract to see risk distribution.
+      </p>
+    );
+  }
+
+  return (
+    <ResponsiveContainer width="100%" height={220}>
+      <PieChart>
+        <Pie
+          data={data}
+          cx="50%"
+          cy="50%"
+          innerRadius={55}
+          outerRadius={85}
+          paddingAngle={3}
+          dataKey="value"
+          stroke="none"
+        >
+          {data.map((entry) => (
+            <Cell key={entry.name} fill={entry.color} />
+          ))}
+        </Pie>
+        <Tooltip
+          contentStyle={{
+            borderRadius: 8,
+            border: "1px solid hsl(var(--border))",
+            background: "hsl(var(--background))",
+          }}
+        />
+        <Legend
+          verticalAlign="bottom"
+          iconType="circle"
+          wrapperStyle={{ fontSize: 12, paddingTop: 8 }}
+        />
+      </PieChart>
+    </ResponsiveContainer>
+  );
 }
 
 // ── Stat card ──
@@ -202,6 +292,16 @@ export default function DashboardPage() {
           iconColor="text-indigo-600"
         />
       </div>
+
+      {/* Risk distribution */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Risk Distribution</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <RiskChart documents={documents} isLoading={isLoading} />
+        </CardContent>
+      </Card>
 
       {/* Recent documents */}
       <Card>

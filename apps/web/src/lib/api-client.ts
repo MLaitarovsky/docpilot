@@ -134,6 +134,13 @@ export const api = {
     });
   },
 
+  patch<T>(path: string, body?: unknown): Promise<T> {
+    return request<T>(path, {
+      method: "PATCH",
+      body: body ? JSON.stringify(body) : undefined,
+    });
+  },
+
   /** Upload a file using multipart/form-data. */
   upload<T>(path: string, formData: FormData): Promise<T> {
     return request<T>(path, {

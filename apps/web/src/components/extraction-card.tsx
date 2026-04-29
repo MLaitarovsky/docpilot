@@ -1,5 +1,8 @@
 "use client";
 
+import { useState } from "react";
+import { Check, Copy } from "lucide-react";
+
 import {
   Card,
   CardContent,
@@ -100,17 +103,51 @@ function FieldRow({
   label: string;
   field: ExtractedField | undefined;
 }) {
+  const [copied, setCopied] = useState(false);
+
+  const copyValue =
+    field && field.value !== null && field.value !== undefined
+      ? typeof field.value === "boolean"
+        ? field.value
+          ? "Yes"
+          : "No"
+        : String(field.value)
+      : null;
+
+  function handleCopy() {
+    if (!copyValue) return;
+    navigator.clipboard.writeText(copyValue).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    });
+  }
+
   return (
-    <div className="flex items-start justify-between gap-4 py-2">
+    <div className="group flex items-start justify-between gap-4 py-2">
       <div className="min-w-0 flex-1">
         <p className="text-xs font-medium text-muted-foreground">{label}</p>
         <div className="mt-0.5">{renderValue(field)}</div>
       </div>
-      {field && field.confidence !== undefined && (
-        <div className="shrink-0 pt-4">
+      <div className="flex shrink-0 items-center gap-2 pt-4">
+        {field && field.confidence !== undefined && (
           <ConfidenceIndicator confidence={field.confidence} />
-        </div>
-      )}
+        )}
+        {copyValue !== null && (
+          <button
+            type="button"
+            onClick={handleCopy}
+            className="opacity-0 transition-opacity hover:text-foreground group-hover:opacity-100 text-muted-foreground"
+            title="Copy to clipboard"
+            aria-label="Copy value"
+          >
+            {copied ? (
+              <Check className="h-3.5 w-3.5 text-emerald-500" />
+            ) : (
+              <Copy className="h-3.5 w-3.5" />
+            )}
+          </button>
+        )}
+      </div>
     </div>
   );
 }

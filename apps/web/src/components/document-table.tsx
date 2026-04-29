@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowDown, ArrowUp, ArrowUpDown, FileText, Loader2, MoreHorizontal, Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -105,6 +105,9 @@ function SkeletonRows() {
       {Array.from({ length: 4 }).map((_, i) => (
         <TableRow key={i}>
           <TableCell>
+            <Skeleton className="h-4 w-4" />
+          </TableCell>
+          <TableCell>
             <Skeleton className="h-4 w-40" />
           </TableCell>
           <TableCell>
@@ -162,6 +165,34 @@ export function DocumentTable({
   const router = useRouter();
   const [deleteTarget, setDeleteTarget] = useState<Document | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+  const [showBulkConfirm, setShowBulkConfirm] = useState(false);
+  const headerCheckboxRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!headerCheckboxRef.current) return;
+    const total = documents.length;
+    const n = selectedIds.size;
+    headerCheckboxRef.current.indeterminate = n > 0 && n < total;
+  }, [selectedIds, documents.length]);
+
+  function toggleSelect(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleSelectAll() {
+    if (selectedIds.size === documents.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(documents.map((d) => d.id)));
+    }
+  }
 
   async function handleDelete() {
     if (!deleteTarget) return;
@@ -180,6 +211,29 @@ export function DocumentTable({
     }
   }
 
+  async function handleBulkDelete() {
+    setIsBulkDeleting(true);
+    const count = selectedIds.size;
+    try {
+      await Promise.all(
+        [...selectedIds].map((id) => api.delete(`/api/documents/${id}`)),
+      );
+      toast.success(`${count} document${count === 1 ? "" : "s"} deleted.`);
+      setSelectedIds(new Set());
+      onRefetch();
+    } catch (err) {
+      const msg =
+        err instanceof ApiError ? err.message : "Failed to delete documents.";
+      toast.error(msg);
+    } finally {
+      setIsBulkDeleting(false);
+      setShowBulkConfirm(false);
+    }
+  }
+
+  const allChecked =
+    documents.length > 0 && selectedIds.size === documents.length;
+
   // Empty state
   if (!isLoading && documents.length === 0) {
     return (
@@ -197,9 +251,44 @@ export function DocumentTable({
 
   return (
     <>
+      {selectedIds.size > 0 && (
+        <div className="flex items-center gap-3 rounded-lg border bg-muted/40 px-4 py-2.5">
+          <span className="text-sm text-muted-foreground">
+            {selectedIds.size}{" "}
+            {selectedIds.size === 1 ? "document" : "documents"} selected
+          </span>
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={() => setShowBulkConfirm(true)}
+            disabled={isBulkDeleting}
+          >
+            <Trash2 className="h-4 w-4" />
+            Delete Selected
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setSelectedIds(new Set())}
+          >
+            Clear
+          </Button>
+        </div>
+      )}
+
       <Table>
         <TableHeader>
           <TableRow>
+            <TableHead className="w-10">
+              <input
+                ref={headerCheckboxRef}
+                type="checkbox"
+                className="h-4 w-4 cursor-pointer rounded border-input accent-primary"
+                checked={allChecked}
+                onChange={toggleSelectAll}
+                aria-label="Select all"
+              />
+            </TableHead>
             <TableHead
               className="cursor-pointer select-none"
               onClick={() => onSort?.("filename")}
@@ -266,7 +355,17 @@ export function DocumentTable({
                 key={doc.id}
                 className="cursor-pointer"
                 onClick={() => router.push(`/documents/${doc.id}`)}
+                data-state={selectedIds.has(doc.id) ? "selected" : undefined}
               >
+                <TableCell onClick={(e) => e.stopPropagation()}>
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 cursor-pointer rounded border-input accent-primary"
+                    checked={selectedIds.has(doc.id)}
+                    onChange={() => toggleSelect(doc.id)}
+                    aria-label={`Select ${doc.filename}`}
+                  />
+                </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-2">
                     <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
@@ -378,6 +477,52 @@ export function DocumentTable({
                 </>
               ) : (
                 "Delete"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk delete confirmation dialog */}
+      <Dialog
+        open={showBulkConfirm}
+        onOpenChange={(open) => {
+          if (!open && !isBulkDeleting) setShowBulkConfirm(false);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              Delete {selectedIds.size}{" "}
+              {selectedIds.size === 1 ? "Document" : "Documents"}
+            </DialogTitle>
+            <DialogDescription>
+              This will permanently delete {selectedIds.size}{" "}
+              {selectedIds.size === 1 ? "document" : "documents"} along with
+              all extractions and clause analysis. This action cannot be
+              undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowBulkConfirm(false)}
+              disabled={isBulkDeleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleBulkDelete}
+              disabled={isBulkDeleting}
+            >
+              {isBulkDeleting ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                `Delete ${selectedIds.size}`
               )}
             </Button>
           </DialogFooter>
