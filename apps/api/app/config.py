@@ -61,6 +61,16 @@ class Settings(BaseSettings):
         """Parse the comma-separated CORS_ORIGINS string into a list."""
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
 
+    # ── Email (optional) ───────────────────────────────
+    # If SMTP_HOST is unset, processing-complete emails are silently skipped.
+    smtp_host: str | None = None
+    smtp_port: int = 587
+    smtp_user: str | None = None
+    smtp_password: str | None = None
+    smtp_from: str | None = None  # display address ("DocPilot <noreply@…>")
+    smtp_use_tls: bool = True
+    app_url: str = "http://localhost:3001"  # used for email links
+
 
 # Singleton — import this instance everywhere
 settings = Settings()

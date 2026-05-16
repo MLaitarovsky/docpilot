@@ -5,7 +5,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 # ── Nested response schemas ────────────────────────────
 
@@ -21,6 +21,14 @@ class ExtractionResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class AnnotationSummary(BaseModel):
+    id: uuid.UUID
+    user_id: uuid.UUID
+    user_name: str
+    content: str
+    created_at: datetime
+
+
 class ClauseResponse(BaseModel):
     id: uuid.UUID
     document_id: uuid.UUID
@@ -33,6 +41,7 @@ class ClauseResponse(BaseModel):
     unfavorable_to: str | None = None
     confidence: Decimal | None = None
     page_number: int | None = None
+    annotations: list[AnnotationSummary] = Field(default_factory=list)
     created_at: datetime
 
     model_config = {"from_attributes": True}

@@ -15,13 +15,14 @@ interface UseDocumentsOptions {
   limit?: number;
   status?: string | null;
   docType?: string | null;
+  q?: string | null;
 }
 
 /**
  * Fetch the current team's document list with pagination and filters.
  */
 export function useDocuments(options: UseDocumentsOptions = {}) {
-  const { limit = 20, status = null, docType = null } = options;
+  const { limit = 20, status = null, docType = null, q = null } = options;
 
   const [documents, setDocuments] = useState<Document[]>([]);
   const [total, setTotal] = useState(0);
@@ -39,6 +40,7 @@ export function useDocuments(options: UseDocumentsOptions = {}) {
         params.set("offset", String(pageOffset));
         if (status) params.set("status", status);
         if (docType) params.set("doc_type", docType);
+        if (q && q.trim()) params.set("q", q.trim());
 
         const data = await api.get<DocumentListResponse>(
           `/api/documents?${params.toString()}`,
@@ -54,7 +56,7 @@ export function useDocuments(options: UseDocumentsOptions = {}) {
         setIsLoading(false);
       }
     },
-    [limit, status, docType],
+    [limit, status, docType, q],
   );
 
   // Reset to first page when filters change

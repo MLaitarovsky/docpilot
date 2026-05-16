@@ -12,6 +12,7 @@ export interface User {
   email: string;
   full_name: string;
   role: string;
+  notify_on_complete: boolean;
   team: Team | null;
 }
 

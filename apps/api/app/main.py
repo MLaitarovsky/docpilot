@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import app.models  # noqa: F401
 from app.config import settings
 from app.database import engine
-from app.routers import auth, compare, documents, jobs, teams
+from app.routers import annotations, auth, compare, documents, jobs, teams
 
 
 @asynccontextmanager
@@ -41,6 +41,7 @@ app.add_middleware(
 
 
 # ── Routers ────────────────────────────────────────────
+app.include_router(annotations.router)
 app.include_router(auth.router)
 app.include_router(compare.router)
 app.include_router(documents.router)

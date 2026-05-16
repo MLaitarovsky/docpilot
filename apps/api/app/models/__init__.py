@@ -1,5 +1,6 @@
 """ORM models — import everything so Alembic can detect all tables."""
 
+from app.models.annotation import Annotation
 from app.models.clause import Clause
 from app.models.comparison import Comparison
 from app.models.document import Document
@@ -8,6 +9,7 @@ from app.models.team import Team
 from app.models.user import User
 
 __all__ = [
+    "Annotation",
     "Clause",
     "Comparison",
     "Document",

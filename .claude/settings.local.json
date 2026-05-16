@@ -26,7 +26,8 @@
       "Bash(git add *)",
       "Bash(git commit -m ' *)",
       "Bash(git push *)",
-      "Bash(git commit -m 'fix: use hard redirect after login/register to bypass middleware race *)"
+      "Bash(git commit -m 'fix: use hard redirect after login/register to bypass middleware race *)",
+      "Bash(git commit -q -m 'feat: bulk upload, inline field edit, clause annotations, completion emails, DOCX/CSV export, full-text search *)"
     ]
   }
 }

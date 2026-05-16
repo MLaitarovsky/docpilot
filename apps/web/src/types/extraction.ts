@@ -10,6 +10,15 @@ export interface Extraction {
 export interface ExtractedField {
   value: string | number | boolean | null;
   confidence: number;
+  source?: "model" | "user";
+}
+
+export interface Annotation {
+  id: string;
+  user_id: string;
+  user_name: string;
+  content: string;
+  created_at: string;
 }
 
 export interface Clause {
@@ -24,6 +33,7 @@ export interface Clause {
   unfavorable_to: string | null;
   confidence: number;
   page_number: number | null;
+  annotations?: Annotation[];
 }
 
 export interface JobProgress {

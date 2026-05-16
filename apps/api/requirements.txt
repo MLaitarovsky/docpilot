@@ -21,6 +21,7 @@ python-multipart==0.0.20
 # AI & PDF
 openai==1.58.1
 PyMuPDF==1.25.1
+python-docx==1.1.2
 
 # Config
 pydantic-settings==2.7.1

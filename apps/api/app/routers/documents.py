@@ -1,10 +1,15 @@
 """Document endpoints — upload, list, detail, delete."""
 
+import csv
+import io
 import logging
 import os
 import uuid
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, status
+from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -13,6 +18,7 @@ from app.config import settings
 from app.database import get_db
 from app.dependencies import get_current_user
 from app.models.document import Document
+from app.models.extraction import Extraction
 from app.models.user import User
 from app.schemas.document import (
     DocumentDetailResponse,
@@ -27,6 +33,11 @@ router = APIRouter(prefix="/api/documents", tags=["documents"])
 logger = logging.getLogger(__name__)
 
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
+
+
+class UpdateExtractionFieldRequest(BaseModel):
+    field_key: str
+    value: Any
 
 
 # ── POST /api/documents/upload ─────────────────────────
@@ -129,20 +140,32 @@ async def list_documents(
     offset: int = Query(default=0, ge=0),
     status_filter: str | None = Query(default=None, alias="status"),
     doc_type: str | None = Query(default=None),
+    q: str | None = Query(default=None, max_length=500),
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """List all documents for the current user's team, newest first.
 
     Optional filters: status (uploaded|processing|completed|failed),
-    doc_type (nda|service_agreement|employment_contract|etc.).
+    doc_type (nda|service_agreement|employment_contract|etc.),
+    q (substring match on filename and raw_text content).
     """
+    from sqlalchemy import or_
+
     base = select(Document).where(Document.team_id == user.team_id)
 
     if status_filter:
         base = base.where(Document.status == status_filter)
     if doc_type:
         base = base.where(Document.doc_type == doc_type)
+    if q and q.strip():
+        pattern = f"%{q.strip()}%"
+        base = base.where(
+            or_(
+                Document.filename.ilike(pattern),
+                Document.raw_text.ilike(pattern),
+            )
+        )
 
     # Count total matching
     count_result = await db.execute(select(func.count()).select_from(base.subquery()))
@@ -172,12 +195,18 @@ async def get_document(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Get a single document with its extractions and clauses."""
+    """Get a single document with its extractions, clauses, and annotations."""
+    from app.models.annotation import Annotation
+    from app.models.clause import Clause
+    from app.schemas.document import AnnotationSummary, ClauseResponse
+
     result = await db.execute(
         select(Document)
         .options(
             selectinload(Document.extractions),
-            selectinload(Document.clauses),
+            selectinload(Document.clauses).selectinload(Clause.annotations).selectinload(
+                Annotation.user
+            ),
         )
         .where(Document.id == document_id, Document.team_id == user.team_id)
     )
@@ -192,10 +221,26 @@ async def get_document(
             },
         )
 
-    return {
-        "data": DocumentDetailResponse.model_validate(document).model_dump(),
-        "error": None,
-    }
+    # Build the response, materializing annotations from relationships
+    payload = DocumentDetailResponse.model_validate(document).model_dump()
+    # Override clauses with annotation-aware serialization
+    payload["clauses"] = [
+        {
+            **ClauseResponse.model_validate(clause).model_dump(),
+            "annotations": [
+                AnnotationSummary(
+                    id=a.id,
+                    user_id=a.user_id,
+                    user_name=a.user.full_name,
+                    content=a.content,
+                    created_at=a.created_at,
+                ).model_dump()
+                for a in clause.annotations
+            ],
+        }
+        for clause in document.clauses
+    ]
+    return {"data": payload, "error": None}
 
 
 # ── POST /api/documents/{id}/reprocess ─────────────────
@@ -293,3 +338,236 @@ async def delete_document(
         "data": {"message": "Document deleted"},
         "error": None,
     }
+
+
+# ── PATCH /api/documents/{id}/extractions/{extraction_id} ───
+# Inline edit a single extracted field.
+
+
+@router.patch("/{document_id}/extractions/{extraction_id}")
+async def update_extraction_field(
+    document_id: uuid.UUID,
+    extraction_id: uuid.UUID,
+    body: UpdateExtractionFieldRequest,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Update a single field within an extraction's extracted_data JSONB.
+
+    Marks the field as edited (confidence=1.0, source='user') so
+    downstream displays know it's a manual correction.
+    """
+    result = await db.execute(
+        select(Extraction)
+        .join(Document, Document.id == Extraction.document_id)
+        .where(
+            Extraction.id == extraction_id,
+            Extraction.document_id == document_id,
+            Document.team_id == user.team_id,
+        )
+    )
+    extraction = result.scalar_one_or_none()
+
+    if extraction is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "data": None,
+                "error": {"message": "Extraction not found", "code": "EXTRACTION_NOT_FOUND"},
+            },
+        )
+
+    data = dict(extraction.extracted_data or {})
+    existing = data.get(body.field_key) or {}
+    data[body.field_key] = {
+        **existing,
+        "value": body.value,
+        "confidence": 1.0,
+        "source": "user",
+    }
+    extraction.extracted_data = data
+
+    # SQLAlchemy needs a hint that the JSONB column changed in-place
+    from sqlalchemy.orm.attributes import flag_modified
+
+    flag_modified(extraction, "extracted_data")
+    await db.commit()
+    await db.refresh(extraction)
+
+    return {
+        "data": {"extracted_data": extraction.extracted_data},
+        "error": None,
+    }
+
+
+# ── GET /api/documents/{id}/export ─────────────────────────
+
+
+@router.get("/{document_id}/export")
+async def export_document(
+    document_id: uuid.UUID,
+    format: str = Query(default="csv", pattern="^(csv|docx)$"),
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Export a document's extraction + clauses as CSV or DOCX."""
+    result = await db.execute(
+        select(Document)
+        .options(
+            selectinload(Document.extractions),
+            selectinload(Document.clauses),
+        )
+        .where(
+            Document.id == document_id,
+            Document.team_id == user.team_id,
+        )
+    )
+    document = result.scalar_one_or_none()
+
+    if document is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "data": None,
+                "error": {"message": "Document not found", "code": "DOC_NOT_FOUND"},
+            },
+        )
+
+    safe_stem = os.path.splitext(document.filename)[0].replace('"', "")
+
+    if format == "csv":
+        buf = io.StringIO()
+        writer = csv.writer(buf)
+        writer.writerow(["Section", "Key", "Value"])
+        writer.writerow(["Document", "Filename", document.filename])
+        writer.writerow(["Document", "Type", document.doc_type or ""])
+        writer.writerow(["Document", "Status", document.status])
+        writer.writerow(["Document", "Risk Score", document.risk_score or ""])
+        writer.writerow(["Document", "Pages", document.page_count or ""])
+        writer.writerow(["Document", "Summary", document.executive_summary or ""])
+
+        for extraction in document.extractions:
+            for key, field in (extraction.extracted_data or {}).items():
+                value = field.get("value") if isinstance(field, dict) else field
+                writer.writerow(["Field", key, "" if value is None else str(value)])
+
+        for clause in document.clauses:
+            writer.writerow(
+                [
+                    f"Clause: {clause.clause_type}",
+                    "Risk",
+                    clause.risk_level or "",
+                ]
+            )
+            writer.writerow(
+                [
+                    f"Clause: {clause.clause_type}",
+                    "Original",
+                    clause.original_text,
+                ]
+            )
+            if clause.plain_summary:
+                writer.writerow(
+                    [
+                        f"Clause: {clause.clause_type}",
+                        "Summary",
+                        clause.plain_summary,
+                    ]
+                )
+            if clause.suggested_alternative:
+                writer.writerow(
+                    [
+                        f"Clause: {clause.clause_type}",
+                        "Suggested",
+                        clause.suggested_alternative,
+                    ]
+                )
+
+        return StreamingResponse(
+            iter([buf.getvalue()]),
+            media_type="text/csv",
+            headers={
+                "Content-Disposition": f'attachment; filename="{safe_stem}.csv"',
+            },
+        )
+
+    # ── DOCX export ──
+    try:
+        from docx import Document as DocxDocument
+        from docx.shared import Pt
+    except ImportError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={
+                "data": None,
+                "error": {
+                    "message": "DOCX export unavailable: python-docx not installed.",
+                    "code": "EXPORT_DOCX_UNAVAILABLE",
+                },
+            },
+        ) from exc
+
+    docx = DocxDocument()
+    docx.add_heading(document.filename, level=1)
+    docx.add_paragraph(
+        f"Document type: {document.doc_type or 'Pending'}\n"
+        f"Status: {document.status}\n"
+        f"Risk score: {document.risk_score or 'N/A'}\n"
+        f"Pages: {document.page_count or 'N/A'}"
+    )
+
+    if document.executive_summary:
+        docx.add_heading("Executive Summary", level=2)
+        docx.add_paragraph(document.executive_summary)
+
+    if document.extractions:
+        docx.add_heading("Extracted Fields", level=2)
+        extraction = document.extractions[0]
+        for key, field in (extraction.extracted_data or {}).items():
+            value = field.get("value") if isinstance(field, dict) else field
+            p = docx.add_paragraph()
+            run = p.add_run(f"{key.replace('_', ' ').title()}: ")
+            run.bold = True
+            p.add_run("Not found" if value is None else str(value))
+
+    if document.clauses:
+        docx.add_heading("Risk Analysis", level=2)
+        for clause in document.clauses:
+            docx.add_heading(
+                f"{clause.clause_type.replace('_', ' ').title()} "
+                f"[{(clause.risk_level or 'unknown').upper()}]",
+                level=3,
+            )
+            quote = docx.add_paragraph()
+            run = quote.add_run(f"“{clause.original_text}”")
+            run.italic = True
+            run.font.size = Pt(10)
+            if clause.plain_summary:
+                docx.add_paragraph(clause.plain_summary)
+            if clause.risk_reason:
+                p = docx.add_paragraph()
+                p.add_run("Why flagged: ").bold = True
+                p.add_run(clause.risk_reason)
+            if clause.suggested_alternative:
+                p = docx.add_paragraph()
+                p.add_run("Suggested: ").bold = True
+                p.add_run(clause.suggested_alternative)
+
+    if document.missing_clauses:
+        docx.add_heading("Missing Clauses", level=2)
+        for clause in document.missing_clauses:
+            docx.add_paragraph(str(clause), style="List Bullet")
+
+    buf = io.BytesIO()
+    docx.save(buf)
+    buf.seek(0)
+
+    return StreamingResponse(
+        buf,
+        media_type=(
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        ),
+        headers={
+            "Content-Disposition": f'attachment; filename="{safe_stem}.docx"',
+        },
+    )

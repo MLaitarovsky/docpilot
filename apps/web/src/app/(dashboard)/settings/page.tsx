@@ -23,8 +23,10 @@ export default function SettingsPage() {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [notifyOnComplete, setNotifyOnComplete] = useState(true);
   const [isSavingName, setIsSavingName] = useState(false);
   const [isSavingPassword, setIsSavingPassword] = useState(false);
+  const [isSavingNotify, setIsSavingNotify] = useState(false);
 
   useEffect(() => {
     api
@@ -32,9 +34,28 @@ export default function SettingsPage() {
       .then((u) => {
         setUser(u);
         setFullName(u.full_name);
+        setNotifyOnComplete(u.notify_on_complete);
       })
       .catch(() => {});
   }, []);
+
+  async function handleToggleNotify(checked: boolean) {
+    setIsSavingNotify(true);
+    setNotifyOnComplete(checked); // optimistic
+    try {
+      const updated = await api.patch<User>("/api/auth/me", {
+        notify_on_complete: checked,
+      });
+      setUser(updated);
+    } catch (err) {
+      setNotifyOnComplete(!checked); // rollback
+      toast.error(
+        err instanceof ApiError ? err.message : "Failed to update preference.",
+      );
+    } finally {
+      setIsSavingNotify(false);
+    }
+  }
 
   async function handleSaveName(e: React.FormEvent) {
     e.preventDefault();
@@ -119,6 +140,29 @@ export default function SettingsPage() {
               Save name
             </Button>
           </form>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Notifications</CardTitle>
+          <CardDescription>
+            Email me when a document finishes processing.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <label className="flex items-center gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              className="h-4 w-4 cursor-pointer rounded border-input accent-primary"
+              checked={notifyOnComplete}
+              onChange={(e) => handleToggleNotify(e.target.checked)}
+              disabled={isSavingNotify}
+            />
+            <span className="text-sm">
+              Email me when processing completes
+            </span>
+          </label>
         </CardContent>
       </Card>
 

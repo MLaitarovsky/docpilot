@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, Plus, Search } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -76,9 +76,16 @@ export default function DocumentsPage() {
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [docTypeFilter, setDocTypeFilter] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
   const [riskFilter, setRiskFilter] = useState<string>("");
   const [sortCol, setSortCol] = useState<SortCol | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>("asc");
+
+  // Debounce the search query to avoid hammering the API on every keystroke
+  useEffect(() => {
+    const id = setTimeout(() => setDebouncedQuery(searchQuery), 350);
+    return () => clearTimeout(id);
+  }, [searchQuery]);
 
   const {
     documents,
@@ -94,15 +101,11 @@ export default function DocumentsPage() {
   } = useDocuments({
     status: statusFilter || null,
     docType: docTypeFilter || null,
+    q: debouncedQuery || null,
   });
 
   const displayedDocuments = useMemo(() => {
     let result = [...documents];
-
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      result = result.filter((d) => d.filename.toLowerCase().includes(q));
-    }
 
     if (riskFilter) {
       result = result.filter((d) => d.risk_score === riskFilter);
@@ -119,7 +122,7 @@ export default function DocumentsPage() {
     }
 
     return result;
-  }, [documents, searchQuery, riskFilter, sortCol, sortDir]);
+  }, [documents, riskFilter, sortCol, sortDir]);
 
   function handleSort(col: string) {
     const typedCol = col as SortCol;
@@ -175,8 +178,8 @@ export default function DocumentsPage() {
         <div className="relative">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
-            className="h-9 w-56 pl-8"
-            placeholder="Search by filename…"
+            className="h-9 w-72 pl-8"
+            placeholder="Search filename or contract content…"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />

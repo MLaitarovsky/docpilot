@@ -231,6 +231,9 @@ async def update_me(
     if body.full_name is not None:
         current_user.full_name = body.full_name
 
+    if body.notify_on_complete is not None:
+        current_user.notify_on_complete = body.notify_on_complete
+
     if body.new_password is not None:
         if body.current_password is None or not verify_password(
             body.current_password, current_user.password_hash

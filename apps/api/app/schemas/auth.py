@@ -28,6 +28,7 @@ class UpdateProfileRequest(BaseModel):
     full_name: str | None = Field(default=None, min_length=1, max_length=255)
     current_password: str | None = None
     new_password: str | None = Field(default=None, min_length=8, max_length=128)
+    notify_on_complete: bool | None = None
 
 
 # ── Responses ──────────────────────────────────────────
@@ -47,6 +48,7 @@ class UserResponse(BaseModel):
     email: str
     full_name: str
     role: str
+    notify_on_complete: bool = True
     team: TeamResponse | None = None
 
     model_config = {"from_attributes": True}

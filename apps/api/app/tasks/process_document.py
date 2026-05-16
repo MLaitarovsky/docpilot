@@ -45,6 +45,15 @@ def process_document(self, document_id: str) -> dict:
     try:
         pipeline = ExtractionPipeline(document_id, job_id, db)
         pipeline.run()
+
+        # Best-effort: notify the uploader by email if they opted in
+        try:
+            _maybe_send_completion_email(db, document_id)
+        except Exception:
+            logger.exception(
+                "Completion email step failed for %s; ignoring", document_id
+            )
+
         return {"status": "completed", "document_id": document_id}
 
     except Exception as exc:
@@ -79,3 +88,34 @@ def process_document(self, document_id: str) -> dict:
 
     finally:
         db.close()
+
+
+def _maybe_send_completion_email(db: Session, document_id: str) -> None:
+    """Send a 'processing complete' email to the uploader if they opted in."""
+    from app.models.document import Document
+    from app.models.user import User
+    from app.services.email_service import is_configured, send_processing_complete
+
+    if not is_configured():
+        return
+
+    doc = db.execute(
+        select(Document).where(Document.id == uuid.UUID(document_id))
+    ).scalar_one_or_none()
+    if doc is None:
+        return
+
+    user = db.execute(
+        select(User).where(User.id == doc.uploaded_by)
+    ).scalar_one_or_none()
+    if user is None or not user.notify_on_complete:
+        return
+
+    send_processing_complete(
+        to=user.email,
+        user_name=user.full_name,
+        document_name=doc.filename,
+        document_id=str(doc.id),
+        risk_score=doc.risk_score,
+        doc_type=doc.doc_type,
+    )

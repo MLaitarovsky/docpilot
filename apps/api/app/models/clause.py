@@ -11,6 +11,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.database import Base
 
 if TYPE_CHECKING:
+    from app.models.annotation import Annotation
     from app.models.document import Document
 
 
@@ -43,3 +44,8 @@ class Clause(Base):
 
     # Relationships
     document: Mapped["Document"] = relationship(back_populates="clauses")
+    annotations: Mapped[list["Annotation"]] = relationship(
+        back_populates="clause",
+        cascade="all, delete-orphan",
+        order_by="Annotation.created_at",
+    )

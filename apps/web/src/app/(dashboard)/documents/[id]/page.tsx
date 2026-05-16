@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useState } from "react";
+import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import {
   AlertTriangle,
@@ -21,16 +21,25 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ClauseAnnotations } from "@/components/clause-annotations";
 import { ClauseRiskBadge } from "@/components/clause-risk-badge";
 import { ExtractionCard } from "@/components/extraction-card";
 import { MissingClausesChecklist } from "@/components/missing-clauses-checklist";
 import { ProcessingProgress } from "@/components/processing-progress";
 import { RiskScoreBadge } from "@/components/risk-score-badge";
 import { api, ApiError } from "@/lib/api-client";
+import { downloadExport } from "@/lib/export";
 import { useDocument } from "@/hooks/use-documents";
+import type { User as AuthUser } from "@/types/auth";
 
 // ── Helpers ──
 
@@ -151,6 +160,12 @@ export default function DocumentDetailPage({
   const [isReprocessing, setIsReprocessing] = useState(false);
   const [reprocessJobId, setReprocessJobId] = useState<string | null>(null);
   const [clauseFilter, setClauseFilter] = useState<"all" | "high" | "medium" | "low">("all");
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
+
+  useEffect(() => {
+    api.get<AuthUser>("/api/auth/me").then(setCurrentUser).catch(() => {});
+  }, []);
 
   async function handleReprocess() {
     setIsReprocessing(true);
@@ -166,8 +181,23 @@ export default function DocumentDetailPage({
     }
   }
 
-  function handleExportPdf() {
-    window.print();
+  async function handleExport(format: "csv" | "docx" | "pdf") {
+    if (format === "pdf") {
+      window.print();
+      return;
+    }
+    if (!doc) return;
+    setIsExporting(true);
+    try {
+      const stem = doc.filename.replace(/\.[^/.]+$/, "") || "document";
+      await downloadExport(id, format, stem);
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Export failed.",
+      );
+    } finally {
+      setIsExporting(false);
+    }
   }
 
   if (isLoading) return <DetailSkeleton />;
@@ -236,15 +266,34 @@ export default function DocumentDetailPage({
           </div>
 
           {doc.status === "completed" && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleExportPdf}
-              className="print:hidden shrink-0"
-            >
-              <Download className="h-4 w-4" />
-              Export PDF
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="print:hidden shrink-0"
+                  disabled={isExporting}
+                >
+                  {isExporting ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Download className="h-4 w-4" />
+                  )}
+                  Export
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => handleExport("pdf")}>
+                  Print to PDF
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleExport("docx")}>
+                  Word (.docx)
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleExport("csv")}>
+                  Spreadsheet (.csv)
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           )}
         </div>
 
@@ -426,6 +475,16 @@ export default function DocumentDetailPage({
                           Page {clause.page_number}
                         </p>
                       )}
+
+                      {/* Annotations (notes) */}
+                      <div className="print:hidden">
+                        <ClauseAnnotations
+                          clauseId={clause.id}
+                          initialAnnotations={clause.annotations ?? []}
+                          currentUserId={currentUser?.id ?? null}
+                          currentUserRole={currentUser?.role}
+                        />
+                      </div>
                     </CardContent>
                   </Card>
                 ))
@@ -444,6 +503,8 @@ export default function DocumentDetailPage({
                 <ExtractionCard
                   extraction={extraction}
                   docType={doc.doc_type ?? "other"}
+                  documentId={id}
+                  onUpdate={refetch}
                 />
               </div>
             ) : (
