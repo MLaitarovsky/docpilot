@@ -36,6 +36,7 @@ import { ExtractionCard } from "@/components/extraction-card";
 import { MissingClausesChecklist } from "@/components/missing-clauses-checklist";
 import { ProcessingProgress } from "@/components/processing-progress";
 import { RiskScoreBadge } from "@/components/risk-score-badge";
+import { VerdictHero } from "@/components/verdict-hero";
 import { api, ApiError } from "@/lib/api-client";
 import { downloadExport } from "@/lib/export";
 import { useDocument } from "@/hooks/use-documents";
@@ -320,18 +321,9 @@ export default function DocumentDetailPage({
         </div>
       </div>
 
-      {/* Executive Summary */}
-      {doc.status === "completed" && doc.executive_summary && (
-        <Card className="border-slate-200 bg-slate-50 print:border print:shadow-none">
-          <CardContent className="pt-4 pb-4">
-            <p
-              className="text-sm leading-relaxed text-slate-700"
-              dir={dir}
-            >
-              {doc.executive_summary}
-            </p>
-          </CardContent>
-        </Card>
+      {/* Verdict + summary hero */}
+      {doc.status === "completed" && (
+        <VerdictHero doc={doc} dir={dir} />
       )}
 
       <Separator />

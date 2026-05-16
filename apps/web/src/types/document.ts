@@ -17,6 +17,7 @@ export interface Document {
 export interface DocumentDetail extends Document {
   raw_text: string | null;
   executive_summary: string | null;
+  key_points: string[] | null;
   missing_clauses: string[] | null;
   extractions: Extraction[];
   clauses: Clause[];

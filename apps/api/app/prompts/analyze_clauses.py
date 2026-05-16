@@ -79,10 +79,20 @@ Use only types from: limitation_of_liability, confidentiality, ip_ownership, ter
 governing_law, dispute_resolution, data_protection, severability, payment_terms, non_solicitation
 Only list a type as missing if its absence creates real exposure — not just because it's common.
 
+## Key points — the bottom line a busy decision-maker needs:
+Provide 3–5 short, scannable bullet points covering the most important things the signing \
+party must know before signing. Each bullet:
+- Under 140 characters, one specific fact or action — not vague advice
+- Lead with the takeaway, not preamble (GOOD: "Liability is uncapped — you could owe more \
+than the contract is worth." BAD: "There is a clause about liability you may want to review.")
+- Order by importance: biggest risk first
+- If the contract is genuinely clean, say so plainly in 1–2 bullets rather than inventing concerns
+
 Respond with a JSON object:
 {
   "executive_summary": "2–4 sentence plain-English summary of what this contract is and the \
 main risks. Write as if explaining to a non-lawyer.",
+  "key_points": ["Most important thing to know.", "Second most important.", "..."],
   "risk_score": "red | amber | green",
   "missing_clauses": ["limitation_of_liability", "..."],
   "clauses": [
@@ -104,7 +114,8 @@ version would look like",
 }
 
 Only return valid JSON. No extra text. If there are NO genuinely risky clauses, \
-return {"executive_summary": "...", "risk_score": "green", "missing_clauses": [], "clauses": []}."""
+return {"executive_summary": "...", "key_points": ["This contract uses standard terms with \
+no significant risks."], "risk_score": "green", "missing_clauses": [], "clauses": []}."""
 
 
 _DOC_TYPE_FOCUS = {

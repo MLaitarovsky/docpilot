@@ -89,6 +89,7 @@ class DocumentDetailResponse(BaseModel):
     doc_type: str | None = None
     status: str
     executive_summary: str | None = None
+    key_points: list[Any] | None = None
     risk_score: str | None = None
     missing_clauses: list[Any] | None = None
     detected_language: str | None = None

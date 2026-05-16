@@ -33,6 +33,7 @@ class Document(TimestampMixin, Base):
     doc_type: Mapped[str | None] = mapped_column(String(50), default=None)
     status: Mapped[str] = mapped_column(String(20), default="uploaded")
     executive_summary: Mapped[str | None] = mapped_column(Text, default=None)
+    key_points: Mapped[list | None] = mapped_column(JSONB, default=None)
     risk_score: Mapped[str | None] = mapped_column(String(10), default=None)
     missing_clauses: Mapped[list | None] = mapped_column(JSONB, default=None)
     detected_language: Mapped[str | None] = mapped_column(String(10), default=None)

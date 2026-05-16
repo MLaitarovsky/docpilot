@@ -245,6 +245,12 @@ class ExtractionPipeline:
         self.document.risk_score = result.get("risk_score")
         missing = result.get("missing_clauses")
         self.document.missing_clauses = missing if isinstance(missing, list) else []
+        key_points = result.get("key_points")
+        self.document.key_points = (
+            [str(p) for p in key_points if p][:5]
+            if isinstance(key_points, list)
+            else []
+        )
 
         clauses_data = result.get("clauses", [])
         for item in clauses_data:
