@@ -8,7 +8,7 @@ import uuid
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, status
-from fastapi.responses import StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -241,6 +241,58 @@ async def get_document(
         for clause in document.clauses
     ]
     return {"data": payload, "error": None}
+
+
+# ── GET /api/documents/{id}/file ───────────────────────
+
+
+@router.get("/{document_id}/file")
+async def get_document_file(
+    document_id: uuid.UUID,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Stream the original uploaded PDF for inline viewing.
+
+    The file lives on the API container's disk. In production that storage
+    is ephemeral, so the file may be gone after a restart — callers should
+    fall back to the text-based evidence view when this returns 404.
+    """
+    result = await db.execute(
+        select(Document).where(
+            Document.id == document_id,
+            Document.team_id == user.team_id,
+        )
+    )
+    document = result.scalar_one_or_none()
+
+    if document is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "data": None,
+                "error": {"message": "Document not found", "code": "DOC_NOT_FOUND"},
+            },
+        )
+
+    if not document.file_path or not os.path.exists(document.file_path):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "data": None,
+                "error": {
+                    "message": "Original file is no longer available on the server.",
+                    "code": "DOC_FILE_UNAVAILABLE",
+                },
+            },
+        )
+
+    safe_name = os.path.basename(document.filename).replace('"', "")
+    return FileResponse(
+        document.file_path,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'inline; filename="{safe_name}"'},
+    )
 
 
 # ── POST /api/documents/{id}/reprocess ─────────────────

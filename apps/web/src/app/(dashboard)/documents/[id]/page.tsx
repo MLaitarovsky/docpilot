@@ -13,6 +13,7 @@ import {
   FileText,
   Hash,
   Loader2,
+  MapPin,
   RotateCcw,
   User,
 } from "lucide-react";
@@ -32,6 +33,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ClauseAnnotations } from "@/components/clause-annotations";
 import { ClauseRiskBadge } from "@/components/clause-risk-badge";
+import { DocumentEvidence } from "@/components/document-evidence";
 import { ExtractionCard } from "@/components/extraction-card";
 import { MissingClausesChecklist } from "@/components/missing-clauses-checklist";
 import { ProcessingProgress } from "@/components/processing-progress";
@@ -163,6 +165,16 @@ export default function DocumentDetailPage({
   const [clauseFilter, setClauseFilter] = useState<"all" | "high" | "medium" | "low">("all");
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [activeTab, setActiveTab] = useState("risks");
+  const [evidenceTarget, setEvidenceTarget] = useState<{
+    text: string;
+    label: string;
+  } | null>(null);
+
+  function showInDocument(text: string, label: string) {
+    setEvidenceTarget({ text, label });
+    setActiveTab("raw");
+  }
 
   useEffect(() => {
     api.get<AuthUser>("/api/auth/me").then(setCurrentUser).catch(() => {});
@@ -355,7 +367,7 @@ export default function DocumentDetailPage({
 
       {/* Completed — show tabs */}
       {doc.status === "completed" && !reprocessJobId && (
-        <Tabs defaultValue="risks">
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="print:hidden">
             <TabsTrigger value="risks">
               Risk Analysis
@@ -366,7 +378,7 @@ export default function DocumentDetailPage({
               )}
             </TabsTrigger>
             <TabsTrigger value="fields">Extracted Fields</TabsTrigger>
-            <TabsTrigger value="raw">Raw Text</TabsTrigger>
+            <TabsTrigger value="raw">Document</TabsTrigger>
           </TabsList>
 
           {/* ── Risk Analysis ── */}
@@ -425,6 +437,20 @@ export default function DocumentDetailPage({
                             </span>
                           )}
                           <ClauseRiskBadge riskLevel={clause.risk_level} />
+                          <button
+                            type="button"
+                            onClick={() =>
+                              showInDocument(
+                                clause.original_text,
+                                formatClauseType(clause.clause_type),
+                              )
+                            }
+                            className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground print:hidden"
+                            title="Find this clause in the document"
+                          >
+                            <MapPin className="h-3 w-3" />
+                            <span>Show in document</span>
+                          </button>
                           <span className="print:hidden">
                             <CopyButton
                               text={clause.original_text}
@@ -506,24 +532,20 @@ export default function DocumentDetailPage({
             )}
           </TabsContent>
 
-          {/* ── Raw Text ── */}
+          {/* ── Document (source evidence) ── */}
           <TabsContent value="raw" className="mt-4">
-            {doc.raw_text ? (
-              <Card>
-                <CardContent className="pt-6">
-                  <pre
-                    className="max-h-[600px] overflow-auto whitespace-pre-wrap rounded-md bg-muted p-4 font-mono text-xs leading-relaxed"
-                    dir={dir}
-                  >
-                    {doc.raw_text}
-                  </pre>
-                </CardContent>
-              </Card>
-            ) : (
-              <p className="py-8 text-center text-sm text-muted-foreground">
-                No raw text available.
-              </p>
-            )}
+            <Card>
+              <CardContent className="pt-6">
+                <DocumentEvidence
+                  rawText={doc.raw_text}
+                  documentId={id}
+                  target={evidenceTarget?.text ?? null}
+                  targetLabel={evidenceTarget?.label ?? null}
+                  onClearTarget={() => setEvidenceTarget(null)}
+                  dir={dir}
+                />
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       )}
