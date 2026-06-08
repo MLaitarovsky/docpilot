@@ -32,6 +32,7 @@ from app.prompts import (
 )
 from app.services.redis_client import publish_job_status
 from app.utils.chunker import chunk_text
+from app.utils.grounding import is_grounded_quote
 from app.utils.llm_client import call_llm
 from app.utils.pdf_parser import extract_text_from_pdf
 
@@ -242,18 +243,39 @@ class ExtractionPipeline:
 
         # Store document-level enrichment
         self.document.executive_summary = result.get("executive_summary")
-        self.document.risk_score = result.get("risk_score")
         missing = result.get("missing_clauses")
         self.document.missing_clauses = missing if isinstance(missing, list) else []
-        key_points = result.get("key_points")
-        self.document.key_points = (
-            [str(p) for p in key_points if p][:5]
-            if isinstance(key_points, list)
-            else []
-        )
 
-        clauses_data = result.get("clauses", [])
-        for item in clauses_data:
+        # ── Grounding guard ──────────────────────────────
+        # Drop any flagged clause whose quote does not actually appear in the
+        # contract. The model sometimes invents plausible-sounding clauses and
+        # presents them as verbatim quotes — fatal for a legal tool. We verify
+        # every quote against the source text and keep only grounded clauses.
+        raw_clauses = result.get("clauses", []) or []
+        grounded: list[dict] = []
+        dropped = 0
+        for item in raw_clauses:
+            quote = item.get("original_text", "") or ""
+            if is_grounded_quote(self.full_text, quote):
+                grounded.append(item)
+            else:
+                dropped += 1
+                logger.warning(
+                    "Dropping ungrounded clause (type=%s): %.80r",
+                    item.get("clause_type"),
+                    quote,
+                )
+
+        if dropped:
+            logger.warning(
+                "Grounding guard removed %d/%d clauses for document %s",
+                dropped,
+                len(raw_clauses),
+                self.document_id,
+            )
+
+        # Persist surviving clauses
+        for item in grounded:
             confidence_raw = item.get("confidence")
             confidence = None
             if confidence_raw is not None:
@@ -276,5 +298,50 @@ class ExtractionPipeline:
             )
             self.db.add(clause)
 
+        # ── Keep the verdict consistent with the surviving evidence ──
+        # The risk score must never claim more than the grounded clauses support,
+        # otherwise the "High Risk" banner outlives the clauses behind it.
+        levels = {(c.get("risk_level") or "").lower() for c in grounded}
+        if "high" in levels:
+            derived_score = "red"
+        elif "medium" in levels:
+            derived_score = "amber"
+        else:
+            derived_score = "green"
+        # An absent critical protection still warrants a cautionary amber.
+        if derived_score == "green" and self.document.missing_clauses:
+            derived_score = "amber"
+        self.document.risk_score = derived_score
+
+        # Key points: trust the model's list only when nothing was dropped.
+        # If we removed invented clauses, rebuild the bullets from the surviving
+        # clauses (their summaries are already in the document's language) so the
+        # headline can't reference risks we just deleted.
+        if dropped:
+            ranked = sorted(
+                grounded,
+                key=lambda c: {"high": 0, "medium": 1, "low": 2}.get(
+                    (c.get("risk_level") or "").lower(), 3
+                ),
+            )
+            rebuilt = [
+                (c.get("plain_summary") or c.get("risk_reason") or "").strip()[:140]
+                for c in ranked
+                if (c.get("plain_summary") or c.get("risk_reason"))
+            ]
+            self.document.key_points = rebuilt[:5]
+        else:
+            key_points = result.get("key_points")
+            self.document.key_points = (
+                [str(p) for p in key_points if p][:5]
+                if isinstance(key_points, list)
+                else []
+            )
+
         self.db.commit()
-        logger.info("Saved %d clauses (risk_score=%s)", len(clauses_data), self.document.risk_score)
+        logger.info(
+            "Saved %d clauses (%d dropped as ungrounded, risk_score=%s)",
+            len(grounded),
+            dropped,
+            self.document.risk_score,
+        )

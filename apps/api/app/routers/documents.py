@@ -6,10 +6,12 @@ import logging
 import os
 import uuid
 from typing import Any
+from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, status
 from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
+from sqlalchemy import delete as sa_delete
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -33,6 +35,22 @@ router = APIRouter(prefix="/api/documents", tags=["documents"])
 logger = logging.getLogger(__name__)
 
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
+
+
+def _content_disposition(filename: str, disposition: str = "attachment") -> str:
+    """Build a Content-Disposition header value that is safe for non-ASCII names.
+
+    HTTP headers are encoded as latin-1 by the ASGI server, so a raw Hebrew (or
+    any non-ASCII) filename would raise a UnicodeEncodeError and crash the
+    response. We emit an ASCII fallback plus an RFC 5987 ``filename*`` with the
+    UTF-8 encoded name, which modern browsers prefer.
+    """
+    ascii_name = filename.encode("ascii", "ignore").decode("ascii").strip()
+    ascii_name = ascii_name.replace('"', "") or "document"
+    return (
+        f"{disposition}; filename=\"{ascii_name}\"; "
+        f"filename*=UTF-8''{quote(filename)}"
+    )
 
 
 class UpdateExtractionFieldRequest(BaseModel):
@@ -75,17 +93,33 @@ async def upload_document(
             },
         )
 
-    # Build a unique file path: uploads/<team_id>/<uuid>_<filename>
+    # Build a unique file path: uploads/<team_id>/<uuid>.pdf
     team_dir = os.path.join(settings.upload_dir, str(user.team_id))
     os.makedirs(team_dir, exist_ok=True)
 
     file_id = uuid.uuid4()
-    safe_name = file.filename or "document.pdf"
-    file_path = os.path.join(team_dir, f"{file_id}_{safe_name}")
+    # Keep the original (possibly non-ASCII, e.g. Hebrew) name only in the DB for
+    # display. The on-disk path uses the UUID alone — embedding the raw filename
+    # risks UnicodeEncodeError on non-UTF-8 filesystem locales and path traversal.
+    display_name = file.filename or "document.pdf"
+    file_path = os.path.join(team_dir, f"{file_id}.pdf")
 
     # Write file to disk
-    with open(file_path, "wb") as f:
-        f.write(contents)
+    try:
+        with open(file_path, "wb") as f:
+            f.write(contents)
+    except OSError as exc:
+        logger.exception("Failed to write uploaded file to %s", file_path)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "data": None,
+                "error": {
+                    "message": "Could not save the uploaded file. Please try again.",
+                    "code": "DOC_SAVE_FAILED",
+                },
+            },
+        ) from exc
 
     # Pre-extract text from the PDF here in the API process.
     # The API and Celery worker run in separate containers on Railway and do
@@ -105,7 +139,7 @@ async def upload_document(
     document = Document(
         team_id=user.team_id,
         uploaded_by=user.id,
-        filename=safe_name,
+        filename=display_name,
         file_path=file_path,
         file_size_bytes=len(contents),
         raw_text=raw_text,
@@ -287,11 +321,14 @@ async def get_document_file(
             },
         )
 
-    safe_name = os.path.basename(document.filename).replace('"', "")
     return FileResponse(
         document.file_path,
         media_type="application/pdf",
-        headers={"Content-Disposition": f'inline; filename="{safe_name}"'},
+        headers={
+            "Content-Disposition": _content_disposition(
+                os.path.basename(document.filename), "inline"
+            )
+        },
     )
 
 
@@ -380,11 +417,33 @@ async def delete_document(
             },
         )
 
-    # Delete the file from disk (best-effort)
-    if os.path.exists(document.file_path):
-        os.remove(document.file_path)
+    # Delete the file from disk (best-effort — may already be gone on ephemeral
+    # storage; never let a missing file block the DB delete).
+    try:
+        if document.file_path and os.path.exists(document.file_path):
+            os.remove(document.file_path)
+    except OSError as exc:
+        logger.warning("Could not remove file for document %s: %s", document.id, exc)
 
-    await db.delete(document)
+    # Delete related rows explicitly, children first. We avoid ORM relationship
+    # cascade (cascade="all, delete-orphan" without passive_deletes) because in
+    # async SQLAlchemy it would lazy-load the collections during flush and raise
+    # MissingGreenlet. Explicit core deletes work regardless of how the DB-level
+    # ON DELETE CASCADE is configured.
+    from app.models.annotation import Annotation
+    from app.models.clause import Clause
+
+    await db.execute(
+        sa_delete(Annotation).where(
+            Annotation.clause_id.in_(
+                select(Clause.id).where(Clause.document_id == document.id)
+            )
+        )
+    )
+    await db.execute(sa_delete(Clause).where(Clause.document_id == document.id))
+    await db.execute(sa_delete(Extraction).where(Extraction.document_id == document.id))
+    await db.execute(sa_delete(Document).where(Document.id == document.id))
+    await db.commit()
 
     return {
         "data": {"message": "Document deleted"},
@@ -539,7 +598,7 @@ async def export_document(
             iter([buf.getvalue()]),
             media_type="text/csv",
             headers={
-                "Content-Disposition": f'attachment; filename="{safe_stem}.csv"',
+                "Content-Disposition": _content_disposition(f"{safe_stem}.csv"),
             },
         )
 
@@ -620,6 +679,6 @@ async def export_document(
             "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         ),
         headers={
-            "Content-Disposition": f'attachment; filename="{safe_stem}.docx"',
+            "Content-Disposition": _content_disposition(f"{safe_stem}.docx"),
         },
     )

@@ -1,10 +1,12 @@
 """DocPilot API — FastAPI application entry point."""
 
+import logging
 import os
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 # Import all models so they're registered with SQLAlchemy metadata
 import app.models  # noqa: F401
@@ -23,6 +25,8 @@ async def lifespan(application: FastAPI):
     await engine.dispose()
 
 
+logger = logging.getLogger(__name__)
+
 app = FastAPI(
     title="DocPilot API",
     version="0.1.0",
@@ -30,7 +34,32 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS — reads allowed origins from the CORS_ORIGINS env var
+
+# Catch-all error handler. Added BEFORE CORS so the CORS middleware (added last,
+# therefore outermost) wraps it and attaches Access-Control-Allow-Origin to the
+# response. Without this, an unhandled exception returns a bare 500 with no CORS
+# headers, which the browser reports to the frontend as a generic network/
+# "Unable to reach the server" error instead of the real failure.
+@app.middleware("http")
+async def catch_unhandled_errors(request: Request, call_next):
+    try:
+        return await call_next(request)
+    except Exception:  # noqa: BLE001 — last-resort safety net
+        logger.exception("Unhandled error on %s %s", request.method, request.url.path)
+        return JSONResponse(
+            status_code=500,
+            content={
+                "data": None,
+                "error": {
+                    "message": "Internal server error. Please try again.",
+                    "code": "INTERNAL_ERROR",
+                },
+            },
+        )
+
+
+# CORS — reads allowed origins from the CORS_ORIGINS env var.
+# Added last so it sits outermost and can add headers even to error responses.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origin_list,
